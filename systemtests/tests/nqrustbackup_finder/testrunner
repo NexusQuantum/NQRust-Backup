@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+TestName="$(basename "$(pwd)")"
+export TestName
+
+bstat=0
+dstat=0
+estat=0
+rstat=0
+zstat=0
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+
+setup_data
+
+selftest_log="$tmp"/selftest_log.out
+wildcard_log="$tmp"/wildcard_log.out
+error_log="$logdir"/nqrustbackup.log
+
+if [[ "${HAVE_WIN32}" = "1" ]]; then
+  expected_files_1=45
+  expected_files_2=19
+else
+  expected_files_1=68
+  expected_files_2=22
+fi
+
+sbin/nqrustbackup_finder-nqrustbackup_finder -c etc/nqrustbackup -f SelfTest >"$selftest_log"
+
+expect_grep "Number of files examined: $expected_files_1" \
+  "$selftest_log" \
+  "Number of files is incorrect."
+
+unopenable_dir=${tmp}/data/unopenable_dir
+mkdir -m 000 "$unopenable_dir"
+
+sbin/nqrustbackup_finder-nqrustbackup_finder -c etc/nqrustbackup -f Wildtest >"$wildcard_log"
+
+expect_grep "Number of files examined: $expected_files_2" \
+  "$wildcard_log" \
+  "Number of files is incorrect."
+
+if [ ! -r "$unopenable_dir" ]; then
+  expect_grep "\"$unopenable_dir\": ERR=Permission denied" \
+    "$error_log" \
+    "Error on faulty directory not detected."
+fi
+
+rmdir "${unopenable_dir}"
+
+end_test

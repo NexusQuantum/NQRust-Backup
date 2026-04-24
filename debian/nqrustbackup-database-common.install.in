@@ -1,0 +1,9 @@
+@libdir@/libnqrustbackupsql.so*
+@scriptdir@/create_nqrustbackup_database
+@scriptdir@/drop_nqrustbackup_database
+@scriptdir@/drop_nqrustbackup_tables
+@scriptdir@/grant_nqrustbackup_privileges
+@scriptdir@/make_nqrustbackup_tables
+@scriptdir@/set_dbconfig_vars.sh
+@scriptdir@/update_nqrustbackup_tables
+@scriptdir@/ddl/versions.map

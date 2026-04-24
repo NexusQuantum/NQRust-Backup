@@ -1,0 +1,145 @@
+#   NQRUSTBACKUP® - Backup Archiving REcovery Open Sourced
+#
+#   Copyright (C) 2018-2025 NQRustBackup GmbH & Co. KG
+#
+#   This program is Free Software; you can redistribute it and/or
+#   modify it under the terms of version three of the GNU Affero General Public
+#   License as published by the Free Software Foundation and included
+#   in the file LICENSE.
+#
+#   This program is distributed in the hope that it will be useful, but
+#   WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+#   Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+#   02110-1301, USA.
+message("Entering ${CMAKE_CURRENT_SOURCE_DIR}")
+project(nqrustbackup-webui)
+
+set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/../../SOURCES
+    ${PROJECT_SOURCE_DIR}/../SOURCES ${PROJECT_SOURCE_DIR}/cmake
+)
+
+include(NQRustBackupLocalBuildDefinitions OPTIONAL
+        RESULT_VARIABLE NQRustBackupLocalBuildDefinitionsFile
+)
+
+if(NQRUSTBACKUP_FULL_VERSION STREQUAL "")
+  message(FATAL_ERROR NQRUSTBACKUP_FULL_VERSION is not set)
+endif()
+
+find_program(PHP php)
+
+# set defaults
+if(NOT DEFINED sysconfdir)
+  set(sysconfdir ${CMAKE_INSTALL_FULL_SYSCONFDIR})
+endif()
+if(NOT DEFINED confdir)
+  set(confdir "${sysconfdir}/nqrustbackup")
+endif()
+if(NOT DEFINED webuiconfdir)
+  set(webuiconfdir "${sysconfdir}/nqrustbackup-webui")
+endif()
+if(NOT DEFINED baseport)
+  set(baseport 9101)
+endif()
+
+set(dirport ${baseport})
+math(EXPR webuiport "${baseport} + 3")
+
+# upcase variables for CONFIGURE_FILE
+set(SYSCONFDIR "${sysconfdir}")
+set(CONFDIR "${confdir}")
+set(WEBUICONFDIR "${webuiconfdir}")
+
+message("   PHP is ${PHP} ")
+message("   Install system config files:   ${sysconfdir} ")
+message("   Install NQRust Backup config dir: ${confdir} ")
+message("   Install NQRust Backup WebUI configdir: ${webuiconfdir} ")
+message("   VERSION_STRING:                ${VERSION_STRING} ")
+message("   NQRUSTBACKUP_FULL_VERSION:           ${NQRUSTBACKUP_FULL_VERSION} ")
+message("   LocalBuildDefinitionsFile:     ${NQRustBackupLocalBuildDefinitionsFile}")
+
+if(EXISTS ${sysconfdir}/httpd/conf.d)
+  set(HTTPD_CONF ${sysconfdir}/httpd/conf.d)
+elseif(EXISTS ${sysconfdir}/apache2/conf.d)
+  set(HTTPD_CONF ${sysconfdir}/apache2/conf.d)
+elseif(EXISTS ${sysconfdir}/apache/conf.d)
+  set(HTTPD_CONF ${sysconfdir}/apache/conf.d)
+elseif(EXISTS ${sysconfdir}/apache2/conf-available)
+  set(HTTPD_CONF ${sysconfdir}/apache2/conf-available)
+else()
+  set(HTTPD_CONF ${sysconfdir}/httpd/conf.d)
+endif()
+
+configure_file(
+  config/autoload/global.php.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/config/autoload/global.php @ONLY
+)
+configure_file(
+  install/directors.ini.in ${CMAKE_CURRENT_SOURCE_DIR}/install/directors.ini
+  @ONLY
+)
+configure_file(
+  install/configuration.ini.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/install/configuration.ini @ONLY
+)
+
+configure_file(version.php.in ${CMAKE_CURRENT_SOURCE_DIR}/version.php @ONLY)
+configure_file(
+  module/Application/view/layout/layout.phtml.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/module/Application/view/layout/layout.phtml @ONLY
+)
+configure_file(
+  module/Application/view/layout/login.phtml.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/module/Application/view/layout/login.phtml @ONLY
+)
+
+set(WEBUI_DIR ${CMAKE_INSTALL_FULL_DATAROOTDIR}/nqrustbackup-webui)
+configure_file(
+  install/apache/nqrustbackup-webui.conf.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/install/apache/nqrustbackup-webui.conf @ONLY
+)
+set(WEBUI_TESTS_DIR ${WEBUI_DIR}/tests/regress)
+if(PHP)
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test @ONLY
+  )
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test-tls.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test-tls
+    @ONLY
+  )
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test-tls.php.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/regress/webui-bsock-connection-test-tls.php
+    @ONLY
+  )
+else()
+  message("PHP not found")
+endif()
+
+if(NOT client-only)
+  install(FILES version.php init_autoloader.php
+          DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/nqrustbackup-webui
+  )
+  install(DIRECTORY tests config module public vendor
+          DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/nqrustbackup-webui
+  )
+
+  install(FILES install/nqrustbackup/nqrustbackup-dir.d/console/admin.conf.example
+          DESTINATION ${configtemplatedir}/nqrustbackup-dir.d/console/
+  )
+  install(FILES install/nqrustbackup/nqrustbackup-dir.d/profile/webui-limited.conf.example
+          DESTINATION ${configtemplatedir}/nqrustbackup-dir.d/profile/
+  )
+  install(FILES install/apache/nqrustbackup-webui.conf DESTINATION ${HTTPD_CONF}/)
+
+  install(FILES install/directors.ini DESTINATION ${webuiconfdir})
+  install(FILES install/configuration.ini DESTINATION ${webuiconfdir})
+endif()

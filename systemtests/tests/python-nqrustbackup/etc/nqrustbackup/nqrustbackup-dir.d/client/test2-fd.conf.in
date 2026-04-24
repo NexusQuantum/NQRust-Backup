@@ -1,0 +1,7 @@
+Client {
+  Name = test2-fd
+  Description = "Client resource, indentical to nqrustbackup-fd, for testing with multiple clients."
+  Address = @hostname@
+  Password = "@fd_password@"
+  Port = @fd_port@
+}

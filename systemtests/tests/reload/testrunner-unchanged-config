@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#trap read debug
+
+#shellcheck source=../../environment.in
+. ./environment
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+. ./reload_test_functions
+
+TestName="$(get_test_name "$0")"
+export TestName
+export estat
+
+nqrustbackup_console_command_file="$tmp/nqrustbackup_console_reload_command"
+console_logfile="$tmp/console.log"
+
+############################################
+start_test
+############################################
+
+setup_config
+#reload unmodified config
+test_reload_will_not_crash_director
+
+############################################
+end_test
+############################################

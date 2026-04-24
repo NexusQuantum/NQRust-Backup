@@ -1,0 +1,16 @@
+#
+# NQRustBackup User Agent (or Console) Configuration File
+#
+
+Director {
+  Name = @basename@-dir
+  Port = @dir_port@
+  Password = "@dir_password@"
+  Address = @hostname@
+}
+
+Console {
+  Name = nqrustbackup-acl-restricted
+  Password = "@dir_password@"
+  Director = @basename@-dir
+}

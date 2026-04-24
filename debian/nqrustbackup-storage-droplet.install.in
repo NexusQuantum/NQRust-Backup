@@ -1,0 +1,6 @@
+@backenddir@/libnqrustbackupsd-droplet.so*
+@configtemplatedir@/nqrustbackup-dir.d/storage/S3_Object.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/S3_ObjectStorage.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/droplet
+@configtemplatedir@/nqrustbackup-sd.d/device/droplet/aws_eu-central-1.profile.example
+@configtemplatedir@/nqrustbackup-sd.d/device/droplet/ceph-rados-gateway.profile.example

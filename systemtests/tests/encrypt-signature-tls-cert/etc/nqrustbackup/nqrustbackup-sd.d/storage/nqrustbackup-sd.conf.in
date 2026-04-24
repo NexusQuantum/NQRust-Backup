@@ -1,0 +1,13 @@
+Storage {
+  Name = nqrustbackup-sd
+  Working Directory =  "@working_dir@"
+  Port = @sd_port@
+  @sd_backend_config@
+
+  TLS Enable = yes
+  TLS Require = yes
+  TLS Verify Peer = no
+  TLS Certificate = "@tls_sd_certificate@"
+  TLS Key = @tls_sd_key@
+  TLS CA Certificate File = "@tls_ca_certificate@"
+}

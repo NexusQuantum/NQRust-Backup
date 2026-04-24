@@ -1,0 +1,32 @@
+Package: nqrustbackup-vmware-plugin
+Architecture: any
+Depends: nqrustbackup-vadp-dumper (= ${binary:Version}), nqrustbackup-common (= ${binary:Version}), nqrustbackup-filedaemon-python3-plugin (= ${binary:Version})
+Description: NQRustBackup VMware plugin
+ Uses the VMware API to take snapshots of running VMs and takes
+ full and incremental backup so snapshots. Restore of a snapshot
+ is currently supported to the origin VM.
+
+Package: nqrustbackup-vadp-dumper
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: vStorage APIs for Data Protection Dumper program
+ Uses vStorage API to connect to VMWare and dump data like virtual disks snapshots
+ to be used by other programs.
+
+#Package: nqrustbackup-vmware-vix-disklib
+#Architecture: any
+#Section: libs
+#Depends: ${shlibs:Depends}, ${misc:Depends}
+#Description: VMware vix disklib distributable libraries
+# The Virtual Disk Development Kit (VDDK) is a collection of C/C++ libraries,
+# code samples, utilities, and documentation to help you create and access
+# VMware virtual disk storage. The VDDK is useful in conjunction with the
+# vSphere API for writing backup and recovery software, or similar applications.
+# This package only contains the distributable code to comply with
+# https://communities.vmware.com/viewwebdoc.jspa?documentID=DOC-10141
+
+#Package: nqrustbackup-vmware-plugin-compat
+#Architecture: any
+#Depends:  nqrustbackup-vmware-plugin
+#Description: NQRustBackup VMware plugin compatibility
+# Keeps nqrustbackup/plugins/vmware_plugin subdirectory, which have been used in NQRustBackup <= 16.2.

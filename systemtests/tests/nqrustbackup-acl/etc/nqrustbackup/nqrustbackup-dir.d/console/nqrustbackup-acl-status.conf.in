@@ -1,0 +1,5 @@
+Console {
+  Name = nqrustbackup-acl-status
+  Password = "@dir_password@"
+  CommandACL = status, .status
+}

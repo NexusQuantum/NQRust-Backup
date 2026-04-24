@@ -1,0 +1,56 @@
+{
+    "name": "nexusquantum/nqrustbackup-webui",
+    "description": "A Web-Frontend to manage NQRust Backup",
+    "license": "AGPL3",
+    "keywords": [
+        "nqrustbackup",
+        "webinterface"
+    ],
+    "homepage": "http://www.nqrustbackup.org/",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/nqrustbackup/laminas-http"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/nqrustbackup/laminas-form"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.23",
+        "laminas/laminas-stdlib": "2.7.*",
+        "laminas/laminas-config": "2.6.*",
+        "laminas/laminas-eventmanager": "2.6.*",
+        "laminas/laminas-filter": "2.6.*",
+        "laminas/laminas-serializer": "2.6.*",
+        "laminas/laminas-servicemanager": "2.7.*",
+        "laminas/laminas-json": "2.6.*",
+        "laminas/laminas-i18n": "2.6.*",
+        "laminas/laminas-mvc": "2.6.*",
+        "laminas/laminas-view": "2.6.*",
+        "zendframework/zend-version": "2.5.*",
+        "laminas/laminas-session": "2.7.*",
+        "laminas/laminas-validator": "2.10.*",
+        "laminas/laminas-inputfilter": "2.6.*",
+        "laminas/laminas-form": "dev-nqrustbackup-2.6.0-patched as 2.6.0",
+        "laminas/laminas-loader": "2.6.*",
+        "laminas/laminas-modulemanager": "2.6.*",
+        "laminas/laminas-cache": "2.6.*",
+        "laminas/laminas-log": "2.6.*",
+        "laminas/laminas-console": "2.6.*",
+        "laminas/laminas-http": "dev-nqrustbackup-2.8.4-patched as 2.8.4",
+        "laminas/laminas-escaper": "2.6.*",
+        "laminas/laminas-uri": "2.6.*",
+        "laminas/laminas-navigation": "2.6.*",
+        "laminas/laminas-dependency-plugin": "^2.1"
+    },
+    "config": {
+        "platform": {
+            "php": "7.4.33"
+        },
+        "allow-plugins": {
+            "laminas/laminas-dependency-plugin": true
+        }
+    }
+}

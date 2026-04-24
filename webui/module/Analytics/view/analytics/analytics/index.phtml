@@ -1,0 +1,182 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (c) 2013-2023 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+$title = _('Analytics');
+$this->headTitle($title);
+
+?>
+
+<?php if($this->acl_alert) : echo $this->ACLAlert($this->invalid_commands); elseif(!$this->acl_alert) : ?>
+
+<ul class="nav nav-tabs">
+  <li class="active"><a href="<?php echo $this->url('analytics', array('action'=>'index')); ?>"><?php echo $this->translate('Stored Data'); ?></a></li>
+  <?php
+    if ($_SESSION['nqrustbackup']['configuration_resource_graph']) {
+        $url = $this->url('analytics', array('action'=>'configuration'));
+        $text = $this->translate('Configuration');
+        echo '<li><a href="'.$url.'">'.$text.'</a></li>';
+    }
+  ?>
+</ul>
+
+<br />
+
+<div class="row">
+
+  <div class="col-md-2">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title"><?php echo $this->translate('Overall'); ?></h3>
+      </div>
+      <div class="panel-body">
+        <div id="overall-jobtotals"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-10">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title"><?php echo $this->translate('Backup jobs'); ?></h3>
+      </div>
+      <div class="panel-body">
+        <div id="graph-jobtotals"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<?php
+  echo $this->headScript()->prependFile($this->basePath() . '/js/bootstrap-table-formatter.js');
+  echo $this->headScript()->prependFile($this->basePath() . '/js/d3/d3.min.js');
+?>
+
+<style>
+</style>
+
+<script>
+
+  $.ajax({
+    url: '<?php echo $this->url('api/analyse', array(), array("query" => array("type" => "overall-jobtotals"))); ?>',
+    dataType: 'json',
+    timeout: 10000,
+    success: function(data) {
+      $("#overall-jobtotals").append("<div><strong>Backups: </strong>" + Intl.NumberFormat().format(data.jobs) + "</div>");
+      $("#overall-jobtotals").append("<div><strong>Files: </strong>" + Intl.NumberFormat().format(data.files) + "</div>");
+      $("#overall-jobtotals").append("<div><strong>Size: </strong>" + formatBytes(data.bytes) + "</div>");
+    },
+    error: function() {
+      $("#overall-jobtotals").empty();
+      $("#overall-jobtotals").append('Error fetching data.');
+    },
+    timeout: function() {
+      $("#overall-jobtotals").empty();
+      $("#overall-jobtotals").append('Timeout fetching data.');
+    },
+    parsererror: function() {
+      $("#overall-jobtotals").empty();
+      $("#overall-jobtotals").append('Error parsing data.');
+    }
+  })
+
+  const margin = {top: 10, right: 10, bottom: 10, left: 10},
+    width = 1024 - margin.left - margin.right,
+    height = 768 - margin.top - margin.bottom;
+  const graphJobTotals = d3.select("#graph-jobtotals");
+
+  d3.json("<?php echo $this->url('api/analyse', array(), array("query" => array("type" => "jobtotals"))); ?>").then(function(data) {
+
+    const root = d3.hierarchy(data).sum(d => d.bytes || 0).sort((a, b) => (b.value || 0) - (a.value || 0))
+    const children = Array.isArray(root.children) ? root.children : [];
+
+    if (children.length === 0) {
+      graphJobTotals
+        .append("div")
+        .attr("class", "alert alert-info")
+        .style("margin-bottom", "0")
+        .text("No backup data available yet.");
+      return;
+    }
+
+    const svg = graphJobTotals
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    const maxValue = Math.max(d3.max(children, d => d.value || 0) || 0, 1);
+    const opacity = d3.scaleLinear()
+      .domain([0, maxValue])
+      .range([0.5, 1])
+
+    d3.treemap()
+      .size([width, height])
+      .padding(1)
+      .tile(d3.treemapSquarify.ratio(2))
+      (root)
+
+    svg.selectAll("rect")
+      .data(root.leaves())
+      .join("rect")
+      .attr('x', d => d.x0)
+      .attr('y', d => d.y0)
+      .attr('width', d => d.x1 - d.x0)
+      .attr('height', d => d.y1 - d.y0)
+      .style("fill", "#337ab7")
+      .style("opacity", d => opacity(d.data.bytes || 0))
+      .attr('data-html', "true")
+      .attr('data-toggle', "tooltip")
+      .append("title").text(
+        d => "Job:" + d.data.job + "\n" +
+        "Backups: " + Intl.NumberFormat().format(d.data.jobs || 0) + "\n" +
+        "Size: " + formatBytes(d.data.bytes || 0) + "\n" +
+        "Files: " + Intl.NumberFormat().format(d.data.files || 0)
+      )
+
+    const labels = svg.selectAll(".label")
+      .data(root.leaves()
+      .filter(f => f.x1 - f.x0 > 128 && f.y1 - f.y0 > 24), d => d.data.job)
+
+    labels.enter().append("text")
+      .attr("class", "label")
+      .attr("dy", 15)
+      .attr("dx", 5)
+      .attr("transform", d => `translate(${d.x0}, ${d.y0})`)
+      .html(d => `<tspan style='font-weight: 800'>${d.data.job}</tspan>`)
+      .style("fill", "white")
+
+  }).catch(function() {
+    graphJobTotals
+      .append("div")
+      .attr("class", "alert alert-danger")
+      .style("margin-bottom", "0")
+      .text("Error fetching analytics data.");
+  })
+
+</script>
+
+<?php endif; ?>

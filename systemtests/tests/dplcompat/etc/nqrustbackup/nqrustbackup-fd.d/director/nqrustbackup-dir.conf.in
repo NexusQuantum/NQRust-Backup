@@ -1,0 +1,4 @@
+Director {
+  Name = nqrustbackup-dir
+  Password = "@fd_password@"
+}

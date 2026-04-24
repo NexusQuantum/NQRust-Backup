@@ -1,0 +1,6 @@
+/etc/xdg/autostart/nqrustbackup-tray-monitor.desktop
+@configtemplatedir@/tray-monitor.d/monitor/nqrustbackup-mon.conf
+/usr/bin/nqrustbackup-tray-monitor
+/usr/share/man/man1/nqrustbackup-tray-monitor.1*
+/usr/share/applications/nqrustbackup-tray-monitor.desktop
+/usr/share/pixmaps/nqrustbackup-tray-monitor.png

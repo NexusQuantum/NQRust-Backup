@@ -1,0 +1,9 @@
+FileSet {
+  Name = "include-client"
+  Include {
+    Options {
+      Signature = XXH128
+    }
+    File = "\\<@confdir@/include-client"
+  }
+}

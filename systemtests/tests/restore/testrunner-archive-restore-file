@@ -1,0 +1,128 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+set -x
+
+#
+# restore some single files from archives
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+#shellcheck source=functions
+. functions
+
+start_test
+
+file1="$(pwd)/tmp/data/build/src/tests/cats_test.c"
+file2="$(pwd)/tmp/data/build/src/tests/bregtest.c"
+file3="$(pwd)/tmp/data/build/src/tests/bbatch.c"
+for f in "$file1" "$file2" "$file3"; do
+  if [[ -f "$tmp/nqrustbackup-restores/$f" ]]; then
+    rm "$tmp/nqrustbackup-restores/$f"
+  fi
+done
+
+if on_windows_host; then
+  filename1="$(cygpath -w -m "${file1}")"
+  filename2="$(cygpath -w -m "${file2}")"
+  filename3="$(cygpath -w -m "${file3}")"
+else
+  filename1="$file1"
+  filename2="$file2"
+  filename3="$file3"
+fi
+cat <<END_OF_DATA >"$tmp/bconcmds"
+@$out ${NULL_DEV}
+setdebug level=100 storage=File
+@$out ${runner_tmp}/log1.out
+status director
+status client
+status storage=File
+wait
+messages
+@$out ${runner_tmp}/jobs.out
+list jobs
+@$out ${runner_tmp}/should-work.out
+update jobid=1 jobtype=A
+restore archive client=nqrustbackup-fd fileset=SelfTest where=$tmp/nqrustbackup-restores \
+	file=$filename1 \
+	done yes
+wait
+messages
+@$out ${runner_tmp}/restore-from-selected-job.out
+restore archive
+12
+1
+find $filename2
+mark $filename2
+done
+yes
+wait
+messages
+@$out ${runner_tmp}/restore-from-list-and-time.out
+restore archive
+8
+$(($(date +%Y) + 1))
+$filename3
+
+yes
+wait
+messages
+wait
+@# restore old job type
+update jobid=1 jobtype=B
+wait
+quit
+END_OF_DATA
+
+run_nqrustbackup_console
+check_for_zombie_jobs storage=File
+
+check_preconditions
+
+expect_grep "Start Restore Job" \
+  "${runner_tmp}/should-work.out" \
+  "The first restore job was not started."
+
+expect_grep "Start Restore Job" \
+  "${runner_tmp}/restore-from-selected-job.out" \
+  "The second restore job was not started."
+
+expect_grep "Start Restore Job" \
+  "${runner_tmp}/restore-from-list-and-time.out" \
+  "The third restore job was not started."
+
+expect_grep "1 file selected to be restored." \
+  "${runner_tmp}/should-work.out" \
+  "Expected success; found failure"
+
+dest1="$tmp/nqrustbackup-restores/$filename1"
+dest2="$tmp/nqrustbackup-restores/$filename2"
+dest3="$tmp/nqrustbackup-restores/$filename3"
+if on_windows_host; then
+  dest1=$(remove_colon_from_windows_path "$dest1")
+  dest2=$(remove_colon_from_windows_path "$dest2")
+  dest3=$(remove_colon_from_windows_path "$dest3")
+fi
+
+if ! cmp -s "$dest1" "$file1"; then
+  exit 2
+fi
+
+if ! cmp -s "$dest2" "$file2"; then
+  exit 3
+fi
+
+if ! cmp -s "$dest3" "$file3"; then
+  exit 4
+fi
+
+end_test

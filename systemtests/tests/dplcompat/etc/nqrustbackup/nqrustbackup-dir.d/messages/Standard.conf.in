@@ -1,0 +1,6 @@
+Messages {
+  Name = Standard
+  console = all, !skipped, !saved, !audit
+  append = "@logdir@/nqrustbackup.log" = all, !skipped, !saved, !audit
+  catalog = all, !skipped, !saved, !audit
+}

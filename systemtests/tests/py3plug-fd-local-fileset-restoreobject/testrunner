@@ -1,0 +1,67 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# This systemtest tests the plugin functionality
+# of the NQRustBackup FD by using the supplied module
+#   nqrustbackup-fd-local-fileset.py
+#
+# The module will backup some files.
+# This plugin is not intended for production,
+# but is only a minimal example that shows
+# how to use the python plugin interface.
+# File attributes like uses and times will not be saved.
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+JobName=backup-nqrustbackup-fd
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+# Fill ${BackupDirectory} with data.
+setup_data
+
+# this test does not work with links because of the restore objects
+rm -r "${tmp}"/data/weird-files >/dev/null 2>&1
+
+start_test
+
+cat <<END_OF_DATA >$tmp/bconcmds
+@$out ${NULL_DEV}
+messages
+@$out $tmp/log1.out
+setdebug level=100 client=nqrustbackup-fd
+label volume=TestVolume001 storage=File pool=Full
+run job=$JobName yes
+status director
+status client
+status storage=File
+wait
+messages
+@#
+@# now do a restore
+@#
+@$out $tmp/log2.out
+restore client=nqrustbackup-fd fileset=PluginTest where=$tmp/nqrustbackup-restores select all done yes
+status client=nqrustbackup-fd
+wait
+messages
+END_OF_DATA
+
+run_nqrustbackup "$@"
+check_for_zombie_jobs storage=File
+
+check_two_logs
+list=($(find "${BackupDirectory}" -type f))
+# Using check_restore_only_files_diff instead of check_restore_diff
+# to don't diff the file attributes, because they are not saved
+check_restore_only_files_diff "${list[@]}"
+end_test

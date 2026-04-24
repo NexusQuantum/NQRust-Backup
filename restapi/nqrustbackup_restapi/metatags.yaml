@@ -1,0 +1,43 @@
+- description: NQRust Backup resource configuration with _show_ and _configure_ command
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: configuration
+- description: Monitor and control NQRust Backup components with commands like _list_ and
+    _update_
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: control
+- description: Operations with clients / client resource
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: clients
+- description: NQRust Backup devices
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: devices
+- description: Director status and configuration
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: directors
+- description: Operations with filesets / fileset resource
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: filesets
+- description: Monitor and control jobs, run, cancel, rerun
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: jobcontrol
+- description: Jobdefs - NQRust Backup job definition templates
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: jobdefs
+- description: Job resource - NQRust Backup job definition
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: jobs
+- description: Pool - NQRust Backup pool definition and status
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: pools
+- description: NQRust Backup schedules
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: schedules
+- description: NQRust Backup storage resources
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: storages
+- description: Manage users, consoles, profiles
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: users
+- description: Volume handling
+  externalDocs: {description: NQRust API reference, url: 'http://127.0.0.1:8000/docs'}
+  name: volumes

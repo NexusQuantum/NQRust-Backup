@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# Do a full restore from an archive job.
+#
+
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+#shellcheck source=functions
+. functions
+
+start_test
+
+cat <<END_OF_DATA >"$tmp/bconcmds"
+@$out ${NULL_DEV}
+messages
+@$out ${runner_tmp}/setup.out
+setdebug level=100 storage=File
+status director
+status client
+status storage=File
+wait
+messages
+@$out ${runner_tmp}/jobs.out
+list jobs
+@$out ${runner_tmp}/should-work.out
+update jobid=1 jobtype=A
+restore archive client=nqrustbackup-fd fileset=SelfTest where=$tmp/nqrustbackup-restores select all done yes
+wait
+messages
+update jobid=1 jobtype=B
+quit
+END_OF_DATA
+
+run_nqrustbackup_console
+check_for_zombie_jobs storage=File
+
+check_preconditions
+
+expect_grep "Start Restore Job" \
+  "${runner_tmp}/should-work.out" \
+  "Required restore job was not started."
+
+check_restore_diff "${BackupDirectory}"
+end_test

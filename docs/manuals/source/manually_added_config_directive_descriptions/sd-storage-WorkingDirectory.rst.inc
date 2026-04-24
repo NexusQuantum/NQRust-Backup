@@ -1,0 +1,1 @@
+This directive specifies a directory in which the Storage daemon may put its status files. This directory should be used only by NQRustBackup, but may be shared by other NQRustBackup daemons provided the names given to each daemon are unique.

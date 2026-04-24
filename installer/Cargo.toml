@@ -1,0 +1,32 @@
+[package]
+name = "nqrustbackup-installer"
+version = "0.1.0"
+edition = "2021"
+description = "NQRustBackup Installer — TUI for deploying the NQRustBackup server stack (Director + Storage + FileDaemon + Catalog + WebUI)"
+authors = ["NQRustBackup eval"]
+license = "AGPL-3.0"
+
+[[bin]]
+name = "nqrustbackup-installer"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+chrono = { version = "0.4", features = ["clock"] }
+rand = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+sysinfo = "0.32"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

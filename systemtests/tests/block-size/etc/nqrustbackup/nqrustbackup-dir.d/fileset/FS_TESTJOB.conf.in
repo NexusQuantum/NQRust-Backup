@@ -1,0 +1,11 @@
+FileSet {
+  Name = FS_TESTJOB
+  Include {
+    Options {
+      Signature = XXH128
+      XattrSupport = No           # Prevent problems on FreeBSD
+      HardLinks = Yes
+    }
+    File = "<@tmpdir@/file-list"
+  }
+}

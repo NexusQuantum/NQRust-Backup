@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# use the test binary as the filedaemon
+export NQRUSTBACKUP_FILEDAEMON_BINARY=${NQRUSTBACKUP_FILEDAEMON_BINARY/nqrustbackup_fd/nqrustbackup_test_fd}

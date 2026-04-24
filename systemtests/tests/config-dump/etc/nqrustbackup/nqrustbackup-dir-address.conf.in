@@ -1,0 +1,9 @@
+Director {
+  Name = "nqrustbackup-dir"
+  QueryFile = "@scriptdir@/query.sql"
+  WorkingDirectory = "@working_dir@"
+  MaximumConcurrentJobs = 10
+  Password = "@dir_password@"
+  Auditing = yes
+  Port = @dir_port@
+}

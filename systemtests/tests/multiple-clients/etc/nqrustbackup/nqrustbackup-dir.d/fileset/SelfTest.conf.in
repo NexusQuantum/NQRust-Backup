@@ -1,0 +1,8 @@
+FileSet {
+  Name = "SelfTest"
+  Description = "fileset just to backup some files for selftest"
+  Enable VSS = No
+  Include {
+    File=<@tmpdir@/file-list
+  }
+}

@@ -1,0 +1,13 @@
+/etc/nqrustbackup/mtx-changer.conf
+/etc/logrotate.d/nqrustbackup-mtx
+@configtemplatedir@/nqrustbackup-dir.d/storage/Tape.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/autochanger/autochanger-0.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/tapedrive-0.conf.example
+@backenddir@/libnqrustbackupsd-tape.so*
+@plugindir@/scsicrypto-sd.so
+@plugindir@/scsitapealert-sd.so
+@scriptdir@/mtx-changer
+/usr/share/man/man8/nqrustbackup_crypto.8*
+/usr/share/man/man8/nqrustbackup_tape.8*
+/usr/sbin/nqrustbackup_crypto
+/usr/sbin/nqrustbackup_tape

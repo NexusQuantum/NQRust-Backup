@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+#shellcheck source=../../environment.in
+. ./environment
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+. ./reload_test_functions
+
+export director_debug_level=""
+#director_debug_level="-d 200"
+
+#be sure no director is started
+stop_director
+
+#cleanup possible leftover from last run
+${NQRUSTBACKUP_SCRIPTS_DIR}/cleanup
+${NQRUSTBACKUP_SCRIPTS_DIR}/setup
+
+start_director

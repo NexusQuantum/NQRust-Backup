@@ -1,0 +1,11 @@
+@scriptdir@/disk-changer
+@configtemplatedir@/nqrustbackup-sd.d/autochanger/FileStorage.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/FileStorage.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/FileStorage.conf
+@configtemplatedir@/nqrustbackup-sd.d/director/nqrustbackup-dir.conf
+@configtemplatedir@/nqrustbackup-sd.d/director/nqrustbackup-mon.conf
+@configtemplatedir@/nqrustbackup-sd.d/messages/Standard.conf
+@configtemplatedir@/nqrustbackup-sd.d/storage/nqrustbackup-sd.conf
+@configtemplatedir@/tray-monitor.d/storage/StorageDaemon-local*.conf
+/usr/sbin/nqrustbackup-sd
+/usr/share/man/man8/nqrustbackup-sd.8*

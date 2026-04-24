@@ -1,0 +1,4 @@
+@plugindir@/nqrustbackup_mysql_dump/*
+@plugindir@/mariadb-dump/*
+@plugindir@/nqrustbackup_tasks/*
+@plugindir@/openvz7/*

@@ -1,0 +1,30 @@
+FileSet {
+  Name = "fileset-multi-includes"
+  Include {
+     Options {
+        Signature = XXH128
+     }
+     File=@tmpdir@/data-multi-includes/data1
+  }
+  Include {
+     Options {
+        Signature = XXH128
+        Compression = GZIP
+     }
+     File=@tmpdir@/data-multi-includes/data2
+  }
+  Include {
+     Options {
+        Signature = XXH128
+        Compression = GZIP9
+     }
+     File=@tmpdir@/data-multi-includes/data3
+  }
+  Include {
+     Options {
+        Signature = XXH128
+        Compression = LZ4
+     }
+     File=@tmpdir@/data-multi-includes/data4
+  }
+}

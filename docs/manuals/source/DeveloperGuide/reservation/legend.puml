@@ -1,0 +1,21 @@
+@startuml
+:reservation context is read or set; <<#aqua>>
+detach
+:Decision based on configuration directive; <<#limegreen>>
+detach
+:Control flow broken; <<#tomato>>
+detach
+(M)
+note right
+  goto or jump-mark
+end note
+detach
+:Read read data from the network; <<input>>
+detach
+:Send data to the network; <<output>>
+detach
+:Call another function; <<procedure>>
+detach
+:Remote procedure call; <<save>>
+
+@enduml

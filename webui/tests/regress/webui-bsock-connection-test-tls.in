@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# Run a simple TLS connection test
+# with an instance of the webui
+# PHP NQRustBackupBSock class
+#
+TestName="webui-bsock-connection-test-tls"
+
+PHP="@PHP@"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+WEBUI_TESTS_DIR="${SCRIPT_DIR}"
+WEBUI_DIR=$(CDPATH= cd -- "${SCRIPT_DIR}/../.." && pwd)
+
+. scripts/functions
+
+scripts/cleanup
+
+copy_configs
+
+start_test
+
+run_nqrustbackup
+
+cd "${WEBUI_DIR}"
+"${PHP}" "${WEBUI_TESTS_DIR}"/webui-bsock-connection-test-tls.php "${REGRESS_DEBUG}"
+cd - > /dev/null
+
+estat_plain=$?
+
+stop_nqrustbackup
+
+export estat
+
+let estat=estat_plain
+
+end_test

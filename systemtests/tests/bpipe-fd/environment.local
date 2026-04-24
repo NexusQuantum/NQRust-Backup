@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# these should get overwritten in bpipe-fd
+export NQRustBackupClientName='-1'
+export NQRustBackupJobId='-1'
+export NQRustBackupJobLevel='-1'
+export NQRustBackupSinceTime='-1'
+export NQRustBackupJobType='-1'
+
+# this should be preserved inside bpipe-fd
+export my_env_variable="still there"

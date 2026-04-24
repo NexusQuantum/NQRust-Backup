@@ -1,0 +1,207 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2025 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace Analytics\Model;
+
+class AnalyticsModel
+{
+    public function getJobTotals(&$bsock = null)
+    {
+        if (isset($bsock)) {
+            $cmd = 'list jobtotals';
+            $result = $bsock->send_command($cmd, 2);
+            $jobtotals = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+            $jobs = $jobtotals['result']['jobs'] ?? array();
+            $children = array("children" => is_array($jobs) ? $jobs : array());
+            return $children;
+        } else {
+            throw new \Exception('Missing argument.');
+        }
+    }
+
+    public function getOverallJobTotals(&$bsock = null)
+    {
+        if (isset($bsock)) {
+            $cmd = 'list jobtotals';
+            $result = $bsock->send_command($cmd, 2);
+            $jobtotals = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+            $result = $jobtotals['result']['jobtotals'] ?? array();
+
+            if (!is_array($result)) {
+                $result = array();
+            }
+
+            return array(
+                'jobs' => $result['jobs'] ?? 0,
+                'files' => $result['files'] ?? 0,
+                'bytes' => $result['bytes'] ?? 0
+            );
+        } else {
+            throw new \Exception('Missing argument.');
+        }
+    }
+
+    public function getConfigResourceId($type, &$name)
+    {
+        # valid CSS id can only contain characters [a-zA-Z0-9-_]
+        return $type . "_" . md5($name);
+    }
+
+    public function createConfigResourceNode($type, &$resource)
+    {
+        $node = new \stdClass();
+        $node->type = $type;
+        $node->id = $this->getConfigResourceId($type, $resource["name"]);
+        $node->name = $resource["name"];
+        $node->resource = $resource;
+        return $node;
+    }
+
+
+    public function getConfigResourceGraph(&$bsock = null)
+    {
+        if (!isset($bsock)) {
+            throw new \Exception('Missing argument.');
+        }
+
+        $cmd = 'show clients';
+        $result = $bsock->send_command($cmd, 2);
+        $clients = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+        $clients_cache = $clients['result']['clients'];
+
+        $cmd = 'show jobs';
+        $result = $bsock->send_command($cmd, 2);
+        $jobs = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+        $jobs_cache = $jobs['result']['jobs'];
+
+        $cmd = 'show jobdefs';
+        $result = $bsock->send_command($cmd, 2);
+        $jobdefs = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+        $jobdefs_cache = $jobdefs['result']['jobdefs'];
+
+        $cmd = 'show fileset';
+        $result = $bsock->send_command($cmd, 2);
+        $filesets = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+        $filesets_cache = $filesets['result']['filesets'];
+
+        $cmd = 'show schedules';
+        $result = $bsock->send_command($cmd, 2);
+        $schedules = \Laminas\Json\Json::decode($result, \Laminas\Json\Json::TYPE_ARRAY);
+        $schedules_cache = $schedules['result']['schedules'];
+
+        $config_graph = new \stdClass();
+        $nodes = array();
+        $links = array();
+
+        foreach ($clients_cache as $client_key => $client) {
+            $node = $this->createConfigResourceNode("client", $client);
+            array_push($nodes, $node);
+            foreach ($jobs_cache as $job_key => $job) {
+                if (isset($job['client'])) {
+                    if ($client["name"] === $job["client"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("job", $job["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+        }
+        foreach ($jobs_cache as $job_key => $job) {
+            $node = $this->createConfigResourceNode("job", $job);
+            array_push($nodes, $node);
+            if (isset($job["jobdefs"])) {
+                foreach ($jobdefs_cache as $jobdefs_key => $jobdefs) {
+                    if ($job["jobdefs"] === $jobdefs["name"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("jobdefs", $jobdefs["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+            if (isset($job["schedule"])) {
+                foreach ($schedules_cache as $schedule_key => $schedule) {
+                    if ($job["schedule"] === $schedule["name"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("schedule", $schedule["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+            if (isset($job["fileset"])) {
+                foreach ($filesets_cache as $filesets_key => $fileset) {
+                    if ($job["fileset"] === $fileset["name"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("fileset", $fileset["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+        }
+
+        foreach ($filesets_cache as $fileset_key => $fileset) {
+            $node = $this->createConfigResourceNode("fileset", $fileset);
+            array_push($nodes, $node);
+        }
+
+        foreach ($jobdefs_cache as $jobdefs_key => $jobdefs) {
+            $node = $this->createConfigResourceNode("jobdefs", $jobdefs);
+            array_push($nodes, $node);
+            if (isset($jobdefs["schedule"])) {
+                foreach ($schedules_cache as $schedule_key => $schedule) {
+                    if ($jobdefs["schedule"] === $schedule["name"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("schedule", $schedule["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+            if (isset($jobdefs["fileset"])) {
+                foreach ($filesets_cache as $fileset_key => $fileset) {
+                    if ($jobdefs["fileset"] === $fileset["name"]) {
+                        $link = new \stdClass();
+                        $link->source = $node->id;
+                        $link->target = $this->getConfigResourceId("fileset", $fileset["name"]);
+                        array_push($links, $link);
+                    }
+                }
+            }
+        }
+
+        foreach ($schedules_cache as $schedule_key => $schedule) {
+            $node = $this->createConfigResourceNode("schedule", $schedule);
+            array_push($nodes, $node);
+        }
+
+        $config_graph->nodes = $nodes;
+        $config_graph->links = $links;
+
+        return $config_graph;
+    }
+}

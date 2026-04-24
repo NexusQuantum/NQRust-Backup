@@ -1,0 +1,8 @@
+Storage {
+  Name = Gluster
+  Address = @hostname@
+  Password = "@sd_password@"
+  Device = GlusterStorage
+  Media Type = GlusterFile
+  Port = @sd_port@
+}

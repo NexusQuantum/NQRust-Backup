@@ -1,0 +1,3 @@
+@plugindir@/grpc-fd.so
+@plugindir@/grpc/nqrustbackup-grpc-fd-plugin-bridge
+@plugindir@/grpc/grpc-test-module

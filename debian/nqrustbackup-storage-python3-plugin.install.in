@@ -1,0 +1,2 @@
+@plugindir@/python3-sd.so
+@Python3_SITEARCH@/nqrustbackupsd.cpython*.so

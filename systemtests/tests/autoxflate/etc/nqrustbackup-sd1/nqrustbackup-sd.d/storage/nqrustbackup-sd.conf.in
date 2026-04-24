@@ -1,0 +1,10 @@
+Storage {
+  Name = nqrustbackup-sd-1
+
+  Working Directory =  "@working_dir@"
+  Port = @sd2_port@
+  @sd_backend_config@
+
+  Plugin Directory = "@SD_PLUGINS_DIR_TO_TEST@"
+  Plugin Names = "autoxflate"
+}

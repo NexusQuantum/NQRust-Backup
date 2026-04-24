@@ -1,0 +1,8 @@
+@configtemplatedir@/nqrustbackup-fd.d/client/myself.conf
+@configtemplatedir@/nqrustbackup-fd.d/director/nqrustbackup-dir.conf
+@configtemplatedir@/nqrustbackup-fd.d/director/nqrustbackup-mon.conf
+@configtemplatedir@/nqrustbackup-fd.d/messages/Standard.conf
+@configtemplatedir@/tray-monitor.d/client/FileDaemon-local*.conf
+/usr/sbin/nqrustbackup-fd
+@plugindir@/bpipe-fd.so
+/usr/share/man/man8/nqrustbackup-fd.8*

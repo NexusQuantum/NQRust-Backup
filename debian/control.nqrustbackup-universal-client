@@ -1,0 +1,15 @@
+Package:        nqrustbackup-universal-client
+Architecture:   any
+Pre-Depends:    debconf (>= 1.4.30) | debconf-2.0, adduser
+Depends:        lsb-base (>= 3.2-13), lsof, ${shlibs:Depends}, ${misc:Depends}
+Provides:       nqrustbackup-universal-filedaemon (= ${binary:Version}), nqrustbackup-filedaemon (= ${binary:Version})
+Conflicts:      nqrustbackup-filedaemon, nqrustbackup-common
+Description: Backup Archiving Recovery Open Sourced - universal client
+ NQRustBackup is a set of programs to manage backup, recovery and verification of
+ data across a network of computers of different kinds.
+ .
+ The file daemon has to be installed on the machine to be backed up. It is
+ responsible for providing the file attributes and data when requested by
+ the Director, and also for the file system-dependent part of restoration.
+ .
+ This package contains the NQRustBackup Universal Client for Linux.

@@ -1,0 +1,52 @@
+Usage: nqrustbackup_smtp [OPTIONS] recipients...
+
+Positionals:
+    recipients TEXT ...
+        REQUIRED
+        List of recipients. 
+
+
+Options:
+    --version
+        Display program version information and exit 
+
+    -?,--help
+        Print this help message and exit. 
+
+    -4,--ipv4-protocol
+        Forces nqrustbackup_smtp to use IPv4 addresses only. 
+
+    -6,--ipv6-protocol
+        Forces nqrustbackup_smtp to use IPv6 addresses only. 
+
+    -8,--utf8
+        set charset to UTF-8. 
+
+    -a,--any-protocol
+        Use any ip protocol for address resolution. 
+
+    -c,--copy-to TEXT
+        Set the Cc: field. 
+
+    -d,--debug-level <level>
+        Set debug level to <level>. 
+
+    --dt,--debug-timestamps
+        Print timestamps in debug output. 
+
+    -f,--from TEXT
+        REQUIRED
+        Set the From: field. 
+
+    -h,--mailhost <mailhost/IPv4_address:port>,<[mailhost/IPv6_address]:port>
+        Use mailhost:port as the SMTP server. 
+
+    -s,--subject TEXT
+        REQUIRED
+        Set the Subject: field. 
+
+    -r,--reply-to TEXT
+        Set the Reply-To: field. 
+
+    -l,--max-lines UINT
+        Set the maximum number of lines to send. 

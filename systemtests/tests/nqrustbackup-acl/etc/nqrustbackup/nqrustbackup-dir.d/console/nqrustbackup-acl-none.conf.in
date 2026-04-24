@@ -1,0 +1,4 @@
+Console {
+  Name = nqrustbackup-acl-none
+  Password = "@dir_password@"
+}

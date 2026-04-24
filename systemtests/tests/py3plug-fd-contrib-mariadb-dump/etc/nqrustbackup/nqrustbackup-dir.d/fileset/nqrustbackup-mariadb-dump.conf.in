@@ -1,0 +1,12 @@
+FileSet {
+  Name = "nqrustbackup-mariadb-dump"
+  Description = "Test the Plugin functionality."
+  Include {
+    Options {
+      Signature = XXH128
+    }
+    Plugin = "@dir_python_module_name@"
+      ":module_name=nqrustbackup-fd-mariadb-dump"
+      ":defaultsfile=@PROJECT_BINARY_DIR@/tests/@TEST_NAME@/my.cnf"
+  }
+}

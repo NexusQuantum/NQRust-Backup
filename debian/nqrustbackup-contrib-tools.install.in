@@ -1,0 +1,11 @@
+@bindir@/chunk_check.py
+@bindir@/nqrustbackup-triggerjob.py
+@bindir@/bsmc
+@configtemplatedir@/bsmc.conf
+@scriptdir@/reschedule_job_as_full.sh
+@configtemplatedir@/media_vault.ini.example
+@configtemplatedir@/nqrustbackup-dir.d/console/console_media_vault.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/profile/profile_media_vault.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/job/job_admin-media_vault.conf.example
+@scriptdir@/media_vault.sh
+@scriptdir@/media_vault.py

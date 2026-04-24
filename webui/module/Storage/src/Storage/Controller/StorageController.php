@@ -1,0 +1,467 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2026 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace Storage\Controller;
+
+use Laminas\Mvc\Controller\AbstractActionController;
+use Laminas\View\Model\ViewModel;
+use Laminas\Json\Json;
+use Storage\Form\StorageForm;
+use Storage\Model\Storage;
+use Exception;
+
+class StorageController extends AbstractActionController
+{
+    /**
+     * Variables
+     */
+    protected $storageModel = null;
+    protected $poolModel = null;
+    protected $bsock = null;
+    protected $acl_alert = false;
+
+    /**
+     * Index Action
+     *
+     * @return object
+     */
+    public function indexAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Storage']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        return new ViewModel(array());
+    }
+
+    /**
+     * Details Action
+     *
+     * @return object
+     */
+    public function detailsAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Storage']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        $result = null;
+
+        $action = $this->params()->fromQuery('action');
+        $storagename = $this->params()->fromRoute('id');
+
+        try {
+            $this->bsock = $this->getServiceLocator()->get('director');
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        try {
+            $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+            $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                $module_config['console_commands']['Storage']['optional']
+            );
+            if (count($invalid_commands) > 0 && in_array('.pools', $invalid_commands)) {
+                $this->acl_alert = true;
+                return new ViewModel(
+                    array(
+                        'acl_alert' => $this->acl_alert,
+                        'invalid_commands' => '.pools'
+                    )
+                );
+            } else {
+                if (isset($_SESSION['nqrustbackup']['ac_labelpooltype'])) {
+                    $pools = $this->getPoolModel()->getDotPools($this->bsock, $_SESSION['nqrustbackup']['ac_labelpooltype']);
+                } else {
+                    $pools = $this->getPoolModel()->getDotPools($this->bsock, null);
+                }
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        try {
+            $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+            $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                $module_config['console_commands']['Storage']['optional']
+            );
+            if (count($invalid_commands) > 0 && in_array('status', $invalid_commands)) {
+                $this->acl_alert = true;
+                return new ViewModel(
+                    array(
+                        'acl_alert' => $this->acl_alert,
+                        'invalid_commands' => 'status'
+                    )
+                );
+            } else {
+                $slots = $this->getStorageModel()->getSlots($this->bsock, $storagename);
+                $drives = array();
+                foreach ($slots as $slot) {
+                    if ($slot['type'] == 'drive') {
+                        array_push($drives, $slot['slotnr']);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        $form = new StorageForm($storagename, $pools, $drives);
+        $form->setAttribute('method', 'post');
+
+        if (empty($action)) {
+            return new ViewModel(array(
+                'storagename' => $storagename,
+                'form' => $form
+            ));
+        } else {
+            if ($action == "import") {
+                $storage = $this->params()->fromQuery('storage');
+                $srcslots = $this->params()->fromQuery('srcslots');
+                $dstslots = $this->params()->fromQuery('dstslots');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('import', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'import'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->importSlots($this->bsock, $storage, $srcslots, $dstslots);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            } elseif ($action == "export") {
+                $storage = $this->params()->fromQuery('storage');
+                $srcslots = $this->params()->fromQuery('srcslots');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('export', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'export'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->exportSlots($this->bsock, $storage, $srcslots);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            } elseif ($action == "mount") {
+                $storage = $this->params()->fromQuery('storage');
+                $slot = $this->params()->fromQuery('slot');
+                $drive = $this->params()->fromQuery('drive');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('mount', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'mount'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->mountSlot($this->bsock, $storage, $slot, $drive);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            } elseif ($action == "unmount") {
+                $storage = $this->params()->fromQuery('storage');
+                $drive = $this->params()->fromQuery('drive');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('unmount', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'unmount'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->unmountSlot($this->bsock, $storage, $drive);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            } elseif ($action == "release") {
+                $storage = $this->params()->fromQuery('storage');
+                $drive = $this->params()->fromQuery('srcslots');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('release', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'release'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->releaseSlot($this->bsock, $storage, $drive);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            } elseif ($action == "label") {
+                $request = $this->getRequest();
+                if ($request->isPost()) {
+                    $s = new Storage();
+                    $form->setInputFilter($s->getInputFilter());
+                    $form->setData($request->getPost());
+                    if ($form->isValid()) {
+                        $storage = $form->getInputFilter()->getValue('storage');
+                        $pool = $form->getInputFilter()->getValue('pool');
+                        $drive = $form->getInputFilter()->getValue('drive');
+                        $encrypted = $form->getInputFilter()->getValue('encrypted');
+                        try {
+                            $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                            $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                                $module_config['console_commands']['Storage']['optional']
+                            );
+                            if (count($invalid_commands) > 0 && in_array('label', $invalid_commands)) {
+                                $this->acl_alert = true;
+                                return new ViewModel(
+                                    array(
+                                        'acl_alert' => $this->acl_alert,
+                                        'invalid_commands' => 'label'
+                                    )
+                                );
+                            } else {
+                                $result = $this->getStorageModel()->label($this->bsock, $storage, $pool, $drive, NULL, $encrypted);
+                            }
+                        } catch (Exception $e) {
+                            echo $e->getMessage();
+                        }
+                    } else {
+                        // Form data not valid
+                    }
+                }
+            } elseif ($action == "updateslots") {
+                $storage = $this->params()->fromQuery('storage');
+
+                try {
+                    $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+                    $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+                        $module_config['console_commands']['Storage']['optional']
+                    );
+                    if (count($invalid_commands) > 0 && in_array('update', $invalid_commands)) {
+                        $this->acl_alert = true;
+                        return new ViewModel(
+                            array(
+                                'acl_alert' => $this->acl_alert,
+                                'invalid_commands' => 'update'
+                            )
+                        );
+                    } else {
+                        $result = $this->getStorageModel()->updateSlots($this->bsock, $storage);
+                    }
+                } catch (Exception $e) {
+                    echo $e->getMessage();
+                }
+            }
+
+            try {
+                $this->bsock->disconnect();
+            } catch (Exception $e) {
+                echo $e->getMessage();
+            }
+
+            return new ViewModel(array(
+                'storagename' => $storagename,
+                'result' => $result,
+                'form' => $form
+            ));
+        }
+    }
+
+    /**
+     * Status Action
+     *
+     * @return object
+     */
+    public function statusAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Storage']['optional']
+        );
+        if (count($invalid_commands) > 0 && in_array('status', $invalid_commands)) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => 'status'
+                )
+            );
+        }
+
+        $result = null;
+
+        $storage = $this->params()->fromQuery('storage');
+
+        try {
+            $this->bsock = $this->getServiceLocator()->get('director');
+            $result = $this->getStorageModel()->statusStorage($this->bsock, $storage);
+            $this->bsock->disconnect();
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        return new ViewModel(
+            array(
+                'result' => $result
+            )
+        );
+    }
+
+    /**
+     * Get Storage Model
+     *
+     * @return object
+     */
+    public function getStorageModel()
+    {
+        if (!$this->storageModel) {
+            $sm = $this->getServiceLocator();
+            $this->storageModel = $sm->get('Storage\Model\StorageModel');
+        }
+        return $this->storageModel;
+    }
+
+    /**
+     * Get Pool Model
+     *
+     * @return object
+     */
+    public function getPoolModel()
+    {
+        if (!$this->poolModel) {
+            $sm = $this->getServiceLocator();
+            $this->poolModel = $sm->get('Pool\Model\PoolModel');
+        }
+        return $this->poolModel;
+    }
+}

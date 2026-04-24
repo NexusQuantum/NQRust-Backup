@@ -1,0 +1,1 @@
+This is the name of a socket to use on the local host to connect to the database. Normally, if neither :config:option:`dir/catalog/DbSocket`\  or :config:option:`dir/catalog/DbAddress`\  are specified, the default socket will be used.

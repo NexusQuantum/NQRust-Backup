@@ -1,0 +1,11 @@
+FileSet {
+  Name = FS_TESTJOB
+  Include {
+    Options {
+      Signature = XXH128
+      HardLinks = Yes
+      Sparse=yes
+    }
+    File = "<@tmpdir@/file-list"
+  }
+}

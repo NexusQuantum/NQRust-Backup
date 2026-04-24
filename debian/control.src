@@ -1,0 +1,57 @@
+# we use conditional build-depends based on build profiles
+# to get the right build-depends just fill DEB_BUILD_PROFILES
+# with your distribution and codename (i.e. "debian buster"
+# or "ubuntu xenial") and you'll get the full build-depends.
+# Otherwise you will just get the common build-depends and
+# might miss a feature or two.
+
+Source: nqrustbackup
+Section: admin
+Priority: optional
+Maintainer: Joerg Steffens <joerg.steffens@nqrustbackup.com>
+Build-Depends: acl-dev,
+ apache2 | httpd,
+ bc,
+ chrpath,
+ cmake (>= 3.17.0),
+ debhelper (>= 9.20160709),
+ dpkg-dev (>= 1.13.19),
+ libacl1-dev,
+ libcap-dev [linux-any],
+ liblzo2-dev,
+ qt6-base-dev | qtbase5-dev,
+ libreadline-dev,
+ libssl-dev,
+ libx11-dev,
+ libxml2-dev,
+ libxxhash-dev (>= 0.8.0) <bookworm> <bullseye> <noble> <jammy>,
+ libcli11-dev (>= 2.1.2) <bookworm> <noble> <jammy>,
+ libexpected-dev (>= 1.0.0~) <bookworm> <bullseye> <noble> <jammy>,
+ libfmt-dev (>= 6.3.1) <bookworm> <bullseye> <noble> <jammy>,
+ libmsgsl-dev (>= 4.0.0) <bookworm> <noble> <jammy>,
+ libutfcpp-dev (>= 2.3.4) <bookworm> <bullseye> <noble> <jammy>,
+ libprotobuf-dev,
+ libpq-dev,
+ libjansson-dev,
+ libjson-c-dev,
+ logrotate,
+ lsb-release,
+ mtx [!hurd-any],
+ ncurses-dev,
+ openssl (>= 1.1.1),
+ pkg-config,
+ po-debconf (>= 0.8.2),
+ python3-dev,
+ zlib1g-dev,
+ systemd,
+ libprotobuf-dev,
+ libgrpc++-dev,
+ protobuf-compiler-grpc
+# required for nqrustbackup-storage-glusterfs and nqrustbackup-filedaemon-glusterfs-plugin
+# glusterfs-common <bullseye> <buster> <stretch> <xenial> <bionic> <focal> <jammy>,
+# libglusterfs-dev <bullseye> <buster> <focal> <jammy>,
+Build-Conflicts: python2.2-dev, python2.3, python2.4, qt3-dev-tools, libqt4-dev
+Standards-Version: 3.9.6
+Vcs-Git: git://github.com/nqrustbackup/nqrustbackup.git -b master
+Vcs-Browser: https://github.com/nqrustbackup/nqrustbackup/tree/master
+Homepage: http://www.nqrustbackup.org/

@@ -1,0 +1,8 @@
+Job {
+  Name = "verify-catalog-nqrustbackup-fd"
+  JobDefs = "DefaultJob"
+  Client = "nqrustbackup-fd"
+  FileSet = "SelfTestStripPath"
+  Type = Verify
+  Level = Catalog
+}

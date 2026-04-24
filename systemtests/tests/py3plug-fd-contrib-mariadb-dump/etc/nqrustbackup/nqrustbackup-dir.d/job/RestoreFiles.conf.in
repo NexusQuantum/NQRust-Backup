@@ -1,0 +1,10 @@
+Job {
+  Name = "RestoreFiles"
+  Type = Restore
+  Client = nqrustbackup-fd
+  FileSet = "nqrustbackup-mariadb-dump"
+  Storage = "File"
+  Pool = "Full"
+  Messages = Standard
+  Where = @tmp@/nqrustbackup-restores
+}

@@ -1,0 +1,15 @@
+#
+# NQRustBackup User Agent (or Console) Configuration File
+#
+
+Director {
+  Name = @basename@-dir
+  Port = @dir_port@
+  Address = @hostname@
+  Password = "INVALID"
+}
+
+Console {
+  Name = job-backup-nqrustbackup-fd
+  Password = secret
+}

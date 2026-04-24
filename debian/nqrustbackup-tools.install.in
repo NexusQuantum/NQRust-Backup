@@ -1,0 +1,16 @@
+/usr/bin/nqrustbackup_regex
+/usr/bin/nqrustbackup_wild
+/usr/sbin/nqrustbackup_copy
+/usr/sbin/nqrustbackup_extract
+/usr/sbin/nqrustbackup_finder
+/usr/sbin/bls
+/usr/sbin/nqrustbackup_regex
+/usr/sbin/nqrustbackup_wild
+/usr/sbin/nqrustbackup_pluginfo
+/usr/sbin/nqrustbackup_dedupestimate
+/usr/share/man/man1/nqrustbackup_wild.1*
+/usr/share/man/man1/nqrustbackup_regex.1*
+/usr/share/man/man8/nqrustbackup_copy.8*
+/usr/share/man/man8/nqrustbackup_extract.8*
+/usr/share/man/man8/bls.8*
+/usr/share/man/man8/nqrustbackup_pluginfo.8*

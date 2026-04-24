@@ -1,0 +1,599 @@
+{
+  "format-version": 2,
+  "component": "nqrustbackup-fd",
+  "resource": {
+    "nqrustbackup-fd": {
+      "Director": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Password": {
+          "datatype": "MD5PASSWORD",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Address": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "description": "Director Network Address. Only required if \"Connection From Client To Director\" is enabled."
+        },
+        "Port": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "9101",
+          "equals": true,
+          "versions": "16.2.2-",
+          "description": "Director Network Port. Only used if \"Connection From Client To Director\" is enabled."
+        },
+        "ConnectionFromDirectorToClient": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "versions": "16.2.2-",
+          "description": "This Client will accept incoming network connection from this Director."
+        },
+        "ConnectionFromClientToDirector": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "versions": "16.2.2-",
+          "description": "Let the Filedaemon initiate network connections to the Director."
+        },
+        "Monitor": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "MaximumBandwidthPerJob": {
+          "datatype": "SPEED",
+          "code": 0,
+          "equals": true
+        },
+        "AllowedScriptDir": {
+          "datatype": "DIRECTORY_LIST",
+          "code": 0,
+          "equals": true
+        },
+        "AllowedJobCommand": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true
+        },
+        "TlsAuthenticate": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Use TLS only to authenticate, not for encryption."
+        },
+        "TlsEnable": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "Enable TLS support."
+        },
+        "TlsRequire": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "If set to \"no\", NQRustBackup can fall back to use unencrypted connections. "
+        },
+        "TlsCipherList": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.2 and lower Ciphers; see \"openssl ciphers\" command. Leftmost element has the highest priority."
+        },
+        "TlsCipherSuites": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.3 Ciphers; see \"openssl ciphers -s -tls1_3\" command. Leftmost element has the highest priority. Currently only SHA256 ciphers are supported."
+        },
+        "TlsDhFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path to PEM encoded Diffie-Hellman parameter file. If this directive is specified, DH key exchange will be used for the ephemeral keying, allowing for forward secrecy of communications."
+        },
+        "TlsProtocol": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "versions": "20.0.0-",
+          "description": "OpenSSL Configuration: Protocol"
+        },
+        "TlsVerifyPeer": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "If disabled, all certificates signed by a known CA will be accepted. If enabled, the CN of a certificate must the Address or in the \"TLS Allowed CN\" list."
+        },
+        "TlsCaCertificateFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS CA certificate(s) file."
+        },
+        "TlsCaCertificateDir": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a TLS CA certificate directory."
+        },
+        "TlsCertificateRevocationList": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a Certificate Revocation List file."
+        },
+        "TlsCertificate": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS certificate."
+        },
+        "TlsKey": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded private key. It must correspond to the specified \"TLS Certificate\"."
+        },
+        "TlsAllowedCn": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "\"Common Name\"s (CNs) of the allowed peer certificates."
+        }
+      },
+      "Client": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true,
+          "description": "The name of this resource. It is used to reference to it."
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Port": {
+          "datatype": "PORT",
+          "code": 0,
+          "default_value": "9102",
+          "equals": true
+        },
+        "FdPort": {
+          "datatype": "PORT",
+          "code": 0,
+          "alias": true,
+          "default_value": "9102",
+          "equals": true,
+          "description": "This is an alias for \"Port\", use \"Port\" instead."
+        },
+        "Address": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "default_value": "9102",
+          "equals": true
+        },
+        "FdAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "alias": true,
+          "default_value": "9102",
+          "equals": true,
+          "description": "This is an alias for \"Address\", use \"Address\" instead."
+        },
+        "Addresses": {
+          "datatype": "ADDRESSES",
+          "code": 0,
+          "default_value": "9102",
+          "equals": true
+        },
+        "FdAddresses": {
+          "datatype": "ADDRESSES",
+          "code": 0,
+          "alias": true,
+          "default_value": "9102",
+          "equals": true,
+          "description": "This is an alias for \"Addresses\", use \"Addresses\" instead."
+        },
+        "SourceAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "default_value": "0",
+          "equals": true
+        },
+        "FdSourceAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "alias": true,
+          "default_value": "0",
+          "equals": true,
+          "description": "This is an alias for \"SourceAddress\", use \"SourceAddress\" instead."
+        },
+        "WorkingDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "default_value": "/var/lib/nqrustbackup",
+          "platform_specific": true,
+          "equals": true
+        },
+        "PluginDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true
+        },
+        "PluginNames": {
+          "datatype": "PLUGIN_NAMES",
+          "code": 0,
+          "equals": true
+        },
+        "ScriptsDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "default_value": "/usr/lib/nqrustbackup/scripts",
+          "platform_specific": true,
+          "equals": true,
+          "description": "Path to directory containing script files"
+        },
+        "MaximumConcurrentJobs": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "1000",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-24.0.0"
+        },
+        "MaximumWorkersPerJob": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "2",
+          "equals": true,
+          "versions": "23.0.0-",
+          "description": "The maximum number of worker threads that nqrustbackup will use during backup."
+        },
+        "Messages": {
+          "datatype": "RES",
+          "code": 2,
+          "equals": true
+        },
+        "SdConnectTimeout": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "1800",
+          "equals": true
+        },
+        "HeartbeatInterval": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "0",
+          "equals": true
+        },
+        "MaximumNetworkBufferSize": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true
+        },
+        "PkiSignatures": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Enable Data Signing."
+        },
+        "PkiEncryption": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Enable Data Encryption."
+        },
+        "PkiKeyPair": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "File with public and private key to sign, encrypt (backup) and decrypt (restore) the data."
+        },
+        "PkiSigner": {
+          "datatype": "DIRECTORY_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "Additional public/private key files to sign or verify the data."
+        },
+        "PkiMasterKey": {
+          "datatype": "DIRECTORY_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "List of public key files. Data will be decryptable via the corresponding private keys."
+        },
+        "PkiCipher": {
+          "datatype": "ENCRYPTION_CIPHER",
+          "code": 0,
+          "default_value": "aes128",
+          "equals": true,
+          "description": "PKI Cipher used for data encryption."
+        },
+        "VerId": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumBandwidthPerJob": {
+          "datatype": "SPEED",
+          "code": 0,
+          "equals": true
+        },
+        "AllowBandwidthBursting": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "AllowedScriptDir": {
+          "datatype": "DIRECTORY_LIST",
+          "code": 0,
+          "equals": true
+        },
+        "AllowedJobCommand": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true
+        },
+        "AbsoluteJobTimeout": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true,
+          "versions": "14.2.0-",
+          "description": "Absolute time after which a Job gets terminated regardless of its progress"
+        },
+        "AlwaysUseLmdb": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-24.0.0",
+          "description": "Ensure that nqrustbackup always chooses the lmdb backend for accurate information regardless of the file list size.  Use LmdbThreshold = 0 instead."
+        },
+        "LmdbThreshold": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true,
+          "description": "File count threshold after which nqrustbackup will use the lmdb backend to store accurate information."
+        },
+        "SecureEraseCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "versions": "15.2.1-",
+          "description": "Specify command that will be called when nqrustbackup unlinks files."
+        },
+        "LogTimestampFormat": {
+          "datatype": "STRING",
+          "code": 0,
+          "default_value": "%d-%b %H:%M",
+          "equals": true,
+          "versions": "15.2.3-"
+        },
+        "GrpcModule": {
+          "datatype": "STRING",
+          "code": 0,
+          "default_value": "nqrustbackup-grpc-fd-plugin-bridge",
+          "equals": true,
+          "versions": "25.0.0-",
+          "description": "The grpc module to use for grpc fallback."
+        },
+        "EnableKtls": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "versions": "23.0.0-",
+          "description": "If set to \"yes\", NQRustBackup will allow the SSL implementation to use Kernel TLS."
+        },
+        "TlsAuthenticate": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Use TLS only to authenticate, not for encryption."
+        },
+        "TlsEnable": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "Enable TLS support."
+        },
+        "TlsRequire": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "If set to \"no\", NQRustBackup can fall back to use unencrypted connections. "
+        },
+        "TlsCipherList": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.2 and lower Ciphers; see \"openssl ciphers\" command. Leftmost element has the highest priority."
+        },
+        "TlsCipherSuites": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.3 Ciphers; see \"openssl ciphers -s -tls1_3\" command. Leftmost element has the highest priority. Currently only SHA256 ciphers are supported."
+        },
+        "TlsDhFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path to PEM encoded Diffie-Hellman parameter file. If this directive is specified, DH key exchange will be used for the ephemeral keying, allowing for forward secrecy of communications."
+        },
+        "TlsProtocol": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "versions": "20.0.0-",
+          "description": "OpenSSL Configuration: Protocol"
+        },
+        "TlsVerifyPeer": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "If disabled, all certificates signed by a known CA will be accepted. If enabled, the CN of a certificate must the Address or in the \"TLS Allowed CN\" list."
+        },
+        "TlsCaCertificateFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS CA certificate(s) file."
+        },
+        "TlsCaCertificateDir": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a TLS CA certificate directory."
+        },
+        "TlsCertificateRevocationList": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a Certificate Revocation List file."
+        },
+        "TlsCertificate": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS certificate."
+        },
+        "TlsKey": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded private key. It must correspond to the specified \"TLS Certificate\"."
+        },
+        "TlsAllowedCn": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "\"Common Name\"s (CNs) of the allowed peer certificates."
+        }
+      },
+      "Messages": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "MailCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "OperatorCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "TimestampFormat": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Syslog": {
+          "datatype": "MESSAGES",
+          "code": 1,
+          "equals": true
+        },
+        "Mail": {
+          "datatype": "MESSAGES",
+          "code": 2,
+          "equals": true
+        },
+        "MailOnError": {
+          "datatype": "MESSAGES",
+          "code": 10,
+          "equals": true
+        },
+        "MailOnSuccess": {
+          "datatype": "MESSAGES",
+          "code": 11,
+          "equals": true
+        },
+        "File": {
+          "datatype": "MESSAGES",
+          "code": 3,
+          "equals": true
+        },
+        "Append": {
+          "datatype": "MESSAGES",
+          "code": 4,
+          "equals": true
+        },
+        "Stdout": {
+          "datatype": "MESSAGES",
+          "code": 5,
+          "equals": true
+        },
+        "Stderr": {
+          "datatype": "MESSAGES",
+          "code": 6,
+          "equals": true
+        },
+        "Director": {
+          "datatype": "MESSAGES",
+          "code": 7,
+          "equals": true
+        },
+        "Console": {
+          "datatype": "MESSAGES",
+          "code": 9,
+          "equals": true
+        },
+        "Operator": {
+          "datatype": "MESSAGES",
+          "code": 8,
+          "equals": true
+        },
+        "Catalog": {
+          "datatype": "MESSAGES",
+          "code": 12,
+          "equals": true
+        }
+      }
+    }
+  }
+}

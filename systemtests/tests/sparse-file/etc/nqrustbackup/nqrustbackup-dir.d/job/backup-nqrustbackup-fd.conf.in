@@ -1,0 +1,6 @@
+Job {
+  Name = "backup-nqrustbackup-fd"
+  JobDefs = "DefaultJob"
+  Type = Backup
+  Client = "nqrustbackup-fd"
+}

@@ -1,0 +1,4 @@
+/usr/sbin/nqrustbackup-dbcheck
+/usr/sbin/nqrustbackup_scan
+/usr/share/man/man8/nqrustbackup-dbcheck.8*
+/usr/share/man/man8/nqrustbackup_scan.8*

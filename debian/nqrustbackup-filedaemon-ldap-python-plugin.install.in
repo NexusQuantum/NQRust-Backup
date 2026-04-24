@@ -1,0 +1,4 @@
+@plugindir@/nqrustbackup-fd-ldap.py*
+@configtemplatedir@/nqrustbackup-dir.d/fileset/plugin-ldap.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/job/backup-ldap.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/job/restore-ldap.conf.example

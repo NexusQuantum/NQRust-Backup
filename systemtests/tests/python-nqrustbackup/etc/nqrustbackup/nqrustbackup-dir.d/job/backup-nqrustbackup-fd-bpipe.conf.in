@@ -1,0 +1,6 @@
+Job {
+  Name = "backup-nqrustbackup-fd-bpipe"
+  JobDefs = "DefaultJob"
+  Client = "nqrustbackup-fd"
+  FileSet = "bpipe-fileset"
+}

@@ -1,0 +1,74 @@
+#! /bin/bash
+#
+# nqrustbackup-ctl-fd  This shell script takes care of starting and stopping
+#		 the NQRustBackup File daemon.
+#
+# description: Backup Archiving REcovery Open Sourced.
+#
+
+export PSCMD="@PSCMD@"
+export PS="ps"
+export AWK="@AWK@"
+export PIDOF="@PIDOF@"
+export PGREP="@PGREP@"
+
+NQRUSTBACKUP_FILEDAEMON_BINARY=${NQRUSTBACKUP_FILEDAEMON_BINARY:-@sbindir@/nqrustbackup-fd}
+export NQRUSTBACKUP_CONFIG_DIR=${NQRUSTBACKUP_CONFIG_DIR:-@confdir@}
+NQRUSTBACKUP_FD_PORT=${NQRUSTBACKUP_FD_PORT:-@fd_port@}
+NQRUSTBACKUP_SCRIPTS_DIR=${NQRUSTBACKUP_SCRIPTS_DIR:-@scriptdir@}
+
+#
+# Source the generic functions.
+#
+. "${NQRUSTBACKUP_SCRIPTS_DIR}/nqrustbackup-ctl-funcs"
+
+case "$1" in
+  start)
+    if [ -x ${NQRUSTBACKUP_FILEDAEMON_BINARY} ]; then
+      echo "Starting the NQRustBackup File daemon as $(whoami)"
+      OPTIONS=''
+      if [ "${NQRUSTBACKUP_CONFIG_DIR}" != '' ]; then
+        OPTIONS="${OPTIONS} -c ${NQRUSTBACKUP_CONFIG_DIR}"
+      fi
+
+      check_config fd ${NQRUSTBACKUP_FILEDAEMON_BINARY} $2 $3 ${OPTIONS} || exit $?
+      if [ "x${VALGRIND_FD}" = "x1" ]; then
+        valgrind --leak-check=full ${NQRUSTBACKUP_FILEDAEMON_BINARY} -v $2 $3 ${OPTIONS}
+      else
+        ${NQRUSTBACKUP_FILEDAEMON_BINARY} -v $2 $3 ${OPTIONS}
+      fi
+    else
+      echo "${NQRUSTBACKUP_FILEDAEMON_BINARY} not executable. Did you forget to build?" >&2
+      exit 1
+    fi
+    ;;
+
+  stop)
+    if [ -x ${NQRUSTBACKUP_FILEDAEMON_BINARY} ]; then
+      printf "Stopping the NQRustBackup File daemon: "
+      shift # shift away the stop
+      killproc ${NQRUSTBACKUP_FILEDAEMON_BINARY} ${NQRUSTBACKUP_FD_PORT} "${@}"
+    else
+      echo "${NQRUSTBACKUP_FILEDAEMON_BINARY} not executable. Did you forget to build?" >&2
+      exit 1
+    fi
+    ;;
+
+  restart)
+    $0 stop
+    sleep 5
+    $0 start
+    ;;
+
+  status)
+    [ -x ${NQRUSTBACKUP_FILEDAEMON_BINARY} ] && status ${NQRUSTBACKUP_FILEDAEMON_BINARY} ${NQRUSTBACKUP_FD_PORT}
+    exit $?
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+
+exit 0

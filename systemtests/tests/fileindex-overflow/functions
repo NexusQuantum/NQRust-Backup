@@ -1,0 +1,9 @@
+#!/bin/bash -x
+#
+# Utility functions for the testrunners in restore-test
+#
+runner_name="$(basename "$0")"
+runner_tmp="${tmp}/${runner_name}"
+mkdir -p "${runner_tmp}"
+rm -rf "${runner_tmp}"/*
+default_joblist="${runner_tmp}/jobs.out"

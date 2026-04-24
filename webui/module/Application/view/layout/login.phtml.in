@@ -1,0 +1,97 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2024 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ * @author    Frank Bergkemper
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+echo $this->doctype();
+
+?>
+
+<html lang="en">
+
+   <head>
+
+      <meta charset="utf-8">
+
+      <?php echo $this->headTitle('NQRust Backup','PREPEND')->setSeparator(' - ')->setAutoEscape(false) ?>
+      <?php echo $this->headMeta()
+         ->appendName('viewport', 'width=device-width, initial-scale=1.0')
+         ->appendHttpEquiv('X-UA-Compatible', 'IE=edge')
+      ?>
+
+      <!-- Styles -->
+      <?php echo $this->headLink(array('rel' => 'icon', 'type' => 'image/svg+xml', 'href' => $this->basePath() . '/themes/nqrust/img/favicon.svg'))
+         ->prependStylesheet($this->basePath() . '/themes/nqrust/css/login.css')
+         ->prependStylesheet($this->basePath() . '/css/login.css')
+         ->prependStylesheet($this->basePath() . '/css/main.css')
+         ->prependStylesheet($this->basePath() . '/css/bootstrap-select.min.css')
+         ->prependStylesheet($this->basePath() . '/css/bootstrap.min.css')
+      ?>
+
+      <!-- Scripts -->
+      <?php echo $this->headScript()
+         ->prependFile($this->basePath() . '/js/bootstrap.min.js')
+         ->prependFile($this->basePath() . '/js/bootstrap-select.min.js')
+         ->prependFile($this->basePath() . '/js/excanvas.min.js')
+         ->prependFile($this->basePath() . '/js/jquery.cookie.js', 'text/javascript')
+         ->prependFile($this->basePath() . '/js/jquery.min.js', 'text/javascript')
+         ->prependFile($this->basePath() . '/js/respond.min.js', 'text/javascript', array('conditional' => 'lt IE 9',))
+         ->prependFile($this->basePath() . '/js/html5shiv.js',   'text/javascript', array('conditional' => 'lt IE 9',));
+      ?>
+
+   </head>
+
+<body>
+
+   <div class="nq-login-shell">
+      <section class="nq-login-hero">
+         <div class="nq-brand nq-brand-large" aria-label="NQRust Backup">
+            <img class="nq-brand-logo" src="<?php echo $this->basePath() . '/themes/nqrust/img/logonqrust-transparent.png'; ?>" alt="NQRust">
+            <span class="nq-brand-product">Backup</span>
+         </div>
+         <p class="nq-kicker">Zero-trust backup control plane</p>
+         <h1>Secure backup operations for modern infrastructure.</h1>
+         <p class="nq-hero-copy">
+            Govern jobs, restores, storage, schedules, and operational telemetry from one hardened NQRust console.
+         </p>
+         <div class="nq-hero-metrics" aria-label="NQRust Backup platform capabilities">
+            <span><strong>Jobs</strong>Policy driven</span>
+            <span><strong>Restore</strong>Operator ready</span>
+            <span><strong>Storage</strong>Unified control</span>
+         </div>
+      </section>
+      <section class="nq-login-panel">
+         <?php echo $this->content; ?>
+         <p class="nq-login-footer">
+            NQRust Backup
+         </p>
+      </section>
+   </div>
+
+   <?php echo $this->inlineScript() ?>
+   <script src="<?php echo $this->basePath() . '/themes/nqrust/js/brand.js'; ?>"></script>
+
+</body>
+
+</html>

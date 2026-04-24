@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# execute nqrustbackup-ctl-fd via sudo
+export NQRUSTBACKUP_CTL_FD_RUNNER="$SUDO --preserve-env"

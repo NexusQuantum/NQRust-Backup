@@ -1,0 +1,3 @@
+@plugindir@/NQRustBackupSdPluginBaseclass.py*
+@plugindir@/NQRustBackupSdWrapper.py*
+@plugindir@/nqrustbackup-sd-class-plugin.py*

@@ -1,0 +1,141 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2024 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ * @author    Frank Bergkemper
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+echo $this->doctype();
+
+include 'version.php';
+
+?>
+
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+
+<?php echo $this->headTitle('NQRust Backup', 'PREPEND')->append($_SESSION['nqrustbackup']['director'])->setSeparator(' | ')->setAutoEscape(false) ?>
+
+<?php echo $this->headMeta()
+   ->appendName('viewport', 'width=device-width, initial-scale=1.0')
+   ->appendHttpEquiv('X-UA-Compatible', 'IE=edge')
+?>
+
+<!-- Styles -->
+<?php echo $this->headLink(array('rel' => 'icon', 'type' => 'image/svg+xml', 'href' => $this->basePath() . '/themes/nqrust/img/favicon.svg'))
+   ->prependStylesheet($this->basePath() . '/css/main.css')
+   ->prependStylesheet($this->basePath() . '/css/bootstrap-datetimepicker.min.css')
+   ->prependStylesheet($this->basePath() . '/css/bootstrap-select.min.css')
+   ->prependStylesheet($this->basePath() . '/css/bootstrap.min.css')
+   ->appendStylesheet($this->basePath() . '/themes/nqrust/css/app.css');
+?>
+
+<!-- Scripts -->
+<?php echo $this->headScript()
+   ->prependFile($this->basePath() . '/js/i_gettext.min.js', 'text/javascript')
+   ->prependFile($this->basePath() . '/js/i_core.min.js', 'text/javascript')
+   ->prependFile($this->basePath() . '/js/bootstrap-select.min.js')
+   ->prependFile($this->basePath() . '/js/bootstrap-datetimepicker.min.js')
+   ->prependFile($this->basePath() . '/js/bootstrap.min.js')
+   ->prependFile($this->basePath() . '/js/excanvas.min.js', 'text/javascript')
+   ->prependFile($this->basePath() . '/js/jquery.min.js', 'text/javascript')
+   ->prependFile($this->basePath() . '/js/moment.min.js')
+   ->prependFile($this->basePath() . '/js/respond.min.js', 'text/javascript', array('conditional' => 'lt IE 9'))
+   ->prependFile($this->basePath() . '/js/html5shiv.js', 'text/javascript', array('conditional' => 'lt IE 9'));
+?>
+
+</head>
+
+<body>
+
+<div class="spinner" id="spinner"></div>
+
+<!-- TOP NAVBAR -->
+<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+   <div class="container-fluid">
+      <div class="navbar-header">
+         <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+         </button>
+         <a class="nq-brand" href="<?php echo $this->url('dashboard', array('action' => 'index')); ?>" target="_self" aria-label="NQRust Backup">
+            <img class="nq-brand-logo" src="<?php echo $this->basePath() . '/themes/nqrust/img/logonqrust-transparent.png'; ?>" alt="NQRust">
+            <span class="nq-brand-product">Backup</span>
+         </a>
+      </div>
+      <div class="collapse navbar-collapse">
+         <?php echo $this->navigation('navigation')->menu()->setMinDepth(0)->setMaxDepth(0)->setUlClass('nav navbar-nav'); ?>
+         <ul class="nav navbar-nav navbar-right">
+            <li class="dropdown">
+               <a href="<?php echo $this->basePath(); ?>" title="NQRust" target="_self">NQRust</a>
+            </li>
+            <li class="dropdown">
+               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+                 <span class="glyphicon glyphicon-th" aria-hidden="true"></span>&nbsp;<?php echo $_SESSION['nqrustbackup']['director']; ?> <span class="caret"></span>
+               </a>
+               <ul class="dropdown-menu" role="menu">
+                  <li><a href="<?php echo $this->url('console', array('action' => 'index')); ?>" target="_self"><?php echo $this->translate("Console"); ?></a></li>
+               </ul>
+            </li>
+            <li class="dropdown">
+               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+                  <span class="glyphicon glyphicon-user" aria-hidden="true"></span>&nbsp;<?php echo $_SESSION['nqrustbackup']['username']; ?> <span class="caret"></span>
+               </a>
+               <ul class="dropdown-menu" role="menu">
+                  <li><a href="<?php echo $this->basePath(); ?>" target="_self">NQRust</a></li>
+                  <li><a href="<?php echo $this->url('director', array('action' => 'subscription')); ?>"><?php echo $this->translate("Support Plan"); ?></a></li>
+                  <li role="separator" class="divider"></li>
+                  <li><a href="<?php echo $this->url('auth', array('action' => 'logout')); ?>"><?php echo $this->translate("Logout"); ?></a></li>
+               </ul>
+            </li>
+         </ul>
+      </div>
+   </div>
+</nav>
+
+<div class="container-fluid">
+<div class="row">
+<div class="col-md-12">
+   <?php echo $this->content; ?>
+</div>
+</div>
+</div>
+
+<?php echo $this->inlineScript() ?>
+
+<script src="<?php echo $this->basePath() . '/themes/nqrust/js/brand.js'; ?>"></script>
+<script>
+   $(window).on("load", function () {
+      $('#spinner').fadeOut('slow');
+   });
+   $(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+   });
+</script>
+
+</body>
+
+</html>

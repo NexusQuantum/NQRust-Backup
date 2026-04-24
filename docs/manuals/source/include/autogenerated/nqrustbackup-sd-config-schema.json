@@ -1,0 +1,1049 @@
+{
+  "format-version": 2,
+  "component": "nqrustbackup-sd",
+  "resource": {
+    "nqrustbackup-sd": {
+      "Director": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Password": {
+          "datatype": "AUTOPASSWORD",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Monitor": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumBandwidthPerJob": {
+          "datatype": "SPEED",
+          "code": 0,
+          "equals": true
+        },
+        "KeyEncryptionKey": {
+          "datatype": "AUTOPASSWORD",
+          "code": 1,
+          "equals": true
+        },
+        "TlsAuthenticate": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Use TLS only to authenticate, not for encryption."
+        },
+        "TlsEnable": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "Enable TLS support."
+        },
+        "TlsRequire": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "If set to \"no\", NQRustBackup can fall back to use unencrypted connections. "
+        },
+        "TlsCipherList": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.2 and lower Ciphers; see \"openssl ciphers\" command. Leftmost element has the highest priority."
+        },
+        "TlsCipherSuites": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.3 Ciphers; see \"openssl ciphers -s -tls1_3\" command. Leftmost element has the highest priority. Currently only SHA256 ciphers are supported."
+        },
+        "TlsDhFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path to PEM encoded Diffie-Hellman parameter file. If this directive is specified, DH key exchange will be used for the ephemeral keying, allowing for forward secrecy of communications."
+        },
+        "TlsProtocol": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "versions": "20.0.0-",
+          "description": "OpenSSL Configuration: Protocol"
+        },
+        "TlsVerifyPeer": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "If disabled, all certificates signed by a known CA will be accepted. If enabled, the CN of a certificate must the Address or in the \"TLS Allowed CN\" list."
+        },
+        "TlsCaCertificateFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS CA certificate(s) file."
+        },
+        "TlsCaCertificateDir": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a TLS CA certificate directory."
+        },
+        "TlsCertificateRevocationList": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a Certificate Revocation List file."
+        },
+        "TlsCertificate": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS certificate."
+        },
+        "TlsKey": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded private key. It must correspond to the specified \"TLS Certificate\"."
+        },
+        "TlsAllowedCn": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "\"Common Name\"s (CNs) of the allowed peer certificates."
+        }
+      },
+      "Ndmp": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Username": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Password": {
+          "datatype": "AUTOPASSWORD",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "AuthType": {
+          "datatype": "AUTH_TYPE",
+          "code": 0,
+          "default_value": "None",
+          "equals": true
+        },
+        "LogLevel": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "4",
+          "equals": true
+        }
+      },
+      "Storage": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Port": {
+          "datatype": "PORT",
+          "code": 0,
+          "default_value": "9103",
+          "equals": true
+        },
+        "SdPort": {
+          "datatype": "PORT",
+          "code": 0,
+          "alias": true,
+          "default_value": "9103",
+          "equals": true,
+          "description": "This is an alias for \"Port\", use \"Port\" instead."
+        },
+        "Address": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "default_value": "9103",
+          "equals": true
+        },
+        "SdAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "alias": true,
+          "default_value": "9103",
+          "equals": true,
+          "description": "This is an alias for \"Address\", use \"Address\" instead."
+        },
+        "Addresses": {
+          "datatype": "ADDRESSES",
+          "code": 0,
+          "default_value": "9103",
+          "equals": true
+        },
+        "SdAddresses": {
+          "datatype": "ADDRESSES",
+          "code": 0,
+          "alias": true,
+          "default_value": "9103",
+          "equals": true,
+          "description": "This is an alias for \"Addresses\", use \"Addresses\" instead."
+        },
+        "SourceAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "default_value": "0",
+          "equals": true
+        },
+        "SdSourceAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "alias": true,
+          "default_value": "0",
+          "equals": true,
+          "description": "This is an alias for \"SourceAddress\", use \"SourceAddress\" instead."
+        },
+        "WorkingDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "default_value": "/var/lib/nqrustbackup",
+          "platform_specific": true,
+          "equals": true
+        },
+        "BackendDirectory": {
+          "datatype": "DIRECTORY_LIST",
+          "code": 0,
+          "default_value": "/usr/lib64/nqrustbackup/backends",
+          "platform_specific": true,
+          "equals": true,
+          "description": "This is the directory where the storage daemon will look for dynamic backends (file, tape, etc.) when it needs to load them."
+        },
+        "JustInTimeReservation": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "Yes",
+          "equals": true,
+          "versions": "23.1.0-",
+          "description": "The storage daemon will only reserve devices when it receives data that needs to be written.  This option also means that no session label gets written if the job is empty."
+        },
+        "PluginDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true
+        },
+        "PluginNames": {
+          "datatype": "PLUGIN_NAMES",
+          "code": 0,
+          "equals": true
+        },
+        "ScriptsDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "default_value": "/usr/lib/nqrustbackup/scripts",
+          "platform_specific": true,
+          "equals": true,
+          "description": "Path to directory containing script files"
+        },
+        "MaximumConcurrentJobs": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "1000",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-24.0.0"
+        },
+        "Messages": {
+          "datatype": "RES",
+          "code": 4,
+          "equals": true
+        },
+        "SdConnectTimeout": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "1800",
+          "equals": true
+        },
+        "FdConnectTimeout": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "1800",
+          "equals": true
+        },
+        "HeartbeatInterval": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "0",
+          "equals": true
+        },
+        "CheckpointInterval": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "0",
+          "equals": true
+        },
+        "MaximumNetworkBufferSize": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true
+        },
+        "ClientConnectWait": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "1800",
+          "equals": true
+        },
+        "VerId": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumBandwidthPerJob": {
+          "datatype": "SPEED",
+          "code": 0,
+          "equals": true
+        },
+        "AllowBandwidthBursting": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "NdmpEnable": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "NdmpSnooping": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "NdmpLogLevel": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "4",
+          "equals": true
+        },
+        "NdmpAddress": {
+          "datatype": "ADDRESS",
+          "code": 0,
+          "default_value": "10000",
+          "equals": true
+        },
+        "NdmpAddresses": {
+          "datatype": "ADDRESSES",
+          "code": 0,
+          "default_value": "10000",
+          "equals": true
+        },
+        "NdmpPort": {
+          "datatype": "PORT",
+          "code": 0,
+          "default_value": "10000",
+          "equals": true
+        },
+        "AutoXFlateOnReplication": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "versions": "13.4.0-"
+        },
+        "AbsoluteJobTimeout": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true,
+          "versions": "14.2.0-",
+          "description": "Absolute time after which a Job gets terminated regardless of its progress"
+        },
+        "CollectDeviceStatistics": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-22.0.0"
+        },
+        "CollectJobStatistics": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-22.0.0"
+        },
+        "StatisticsCollectInterval": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "0",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-22.0.0"
+        },
+        "DeviceReserveByMediaType": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "FileDeviceConcurrentRead": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true
+        },
+        "SecureEraseCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "versions": "15.2.1-",
+          "description": "Specify command that will be called when nqrustbackup unlinks files."
+        },
+        "LogTimestampFormat": {
+          "datatype": "STRING",
+          "code": 0,
+          "default_value": "%d-%b %H:%M",
+          "equals": true,
+          "versions": "15.2.3-"
+        },
+        "EnableKtls": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "versions": "23.0.0-",
+          "description": "If set to \"yes\", NQRustBackup will allow the SSL implementation to use Kernel TLS."
+        },
+        "TlsAuthenticate": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "Use TLS only to authenticate, not for encryption."
+        },
+        "TlsEnable": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "Enable TLS support."
+        },
+        "TlsRequire": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true,
+          "description": "If set to \"no\", NQRustBackup can fall back to use unencrypted connections. "
+        },
+        "TlsCipherList": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.2 and lower Ciphers; see \"openssl ciphers\" command. Leftmost element has the highest priority."
+        },
+        "TlsCipherSuites": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "description": "Colon separated list of valid TLSv1.3 Ciphers; see \"openssl ciphers -s -tls1_3\" command. Leftmost element has the highest priority. Currently only SHA256 ciphers are supported."
+        },
+        "TlsDhFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path to PEM encoded Diffie-Hellman parameter file. If this directive is specified, DH key exchange will be used for the ephemeral keying, allowing for forward secrecy of communications."
+        },
+        "TlsProtocol": {
+          "datatype": "STRING",
+          "code": 0,
+          "platform_specific": true,
+          "equals": true,
+          "versions": "20.0.0-",
+          "description": "OpenSSL Configuration: Protocol"
+        },
+        "TlsVerifyPeer": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "false",
+          "equals": true,
+          "description": "If disabled, all certificates signed by a known CA will be accepted. If enabled, the CN of a certificate must the Address or in the \"TLS Allowed CN\" list."
+        },
+        "TlsCaCertificateFile": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS CA certificate(s) file."
+        },
+        "TlsCaCertificateDir": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a TLS CA certificate directory."
+        },
+        "TlsCertificateRevocationList": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a Certificate Revocation List file."
+        },
+        "TlsCertificate": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded TLS certificate."
+        },
+        "TlsKey": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true,
+          "description": "Path of a PEM encoded private key. It must correspond to the specified \"TLS Certificate\"."
+        },
+        "TlsAllowedCn": {
+          "datatype": "STRING_LIST",
+          "code": 0,
+          "equals": true,
+          "description": "\"Common Name\"s (CNs) of the allowed peer certificates."
+        }
+      },
+      "Device": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true,
+          "description": "Unique identifier of the resource."
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "description": "The Description directive provides easier human recognition, but is not used by NQRustBackup directly."
+        },
+        "MediaType": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "DeviceType": {
+          "datatype": "STRING",
+          "code": 0,
+          "default_value": "",
+          "equals": true
+        },
+        "ArchiveDevice": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "DeviceOptions": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true,
+          "versions": "15.2.0-"
+        },
+        "DiagnosticDevice": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "HardwareEndOfFile": {
+          "datatype": "BIT",
+          "code": 0,
+          "default_value": "on",
+          "equals": true
+        },
+        "HardwareEndOfMedium": {
+          "datatype": "BIT",
+          "code": 5,
+          "default_value": "on",
+          "equals": true
+        },
+        "BackwardSpaceRecord": {
+          "datatype": "BIT",
+          "code": 1,
+          "default_value": "on",
+          "equals": true
+        },
+        "BackwardSpaceFile": {
+          "datatype": "BIT",
+          "code": 2,
+          "default_value": "on",
+          "equals": true
+        },
+        "BsfAtEom": {
+          "datatype": "BIT",
+          "code": 15,
+          "default_value": "off",
+          "equals": true
+        },
+        "TwoEof": {
+          "datatype": "BIT",
+          "code": 17,
+          "default_value": "off",
+          "equals": true
+        },
+        "ForwardSpaceRecord": {
+          "datatype": "BIT",
+          "code": 3,
+          "default_value": "on",
+          "equals": true
+        },
+        "ForwardSpaceFile": {
+          "datatype": "BIT",
+          "code": 4,
+          "default_value": "on",
+          "equals": true
+        },
+        "FastForwardSpaceFile": {
+          "datatype": "BIT",
+          "code": 16,
+          "default_value": "on",
+          "equals": true
+        },
+        "RemovableMedia": {
+          "datatype": "BIT",
+          "code": 6,
+          "default_value": "on",
+          "equals": true
+        },
+        "RandomAccess": {
+          "datatype": "BIT",
+          "code": 7,
+          "default_value": "off",
+          "equals": true
+        },
+        "AutomaticMount": {
+          "datatype": "BIT",
+          "code": 8,
+          "default_value": "off",
+          "equals": true
+        },
+        "LabelMedia": {
+          "datatype": "BIT",
+          "code": 9,
+          "default_value": "off",
+          "equals": true
+        },
+        "AlwaysOpen": {
+          "datatype": "BIT",
+          "code": 11,
+          "default_value": "on",
+          "equals": true
+        },
+        "Autochanger": {
+          "datatype": "BIT",
+          "code": 12,
+          "default_value": "off",
+          "equals": true
+        },
+        "CloseOnPoll": {
+          "datatype": "BIT",
+          "code": 18,
+          "default_value": "off",
+          "equals": true
+        },
+        "BlockPositioning": {
+          "datatype": "BIT",
+          "code": 19,
+          "default_value": "on",
+          "equals": true
+        },
+        "UseMtiocget": {
+          "datatype": "BIT",
+          "code": 20,
+          "default_value": "on",
+          "equals": true
+        },
+        "CheckLabels": {
+          "datatype": "BIT",
+          "code": 22,
+          "default_value": "off",
+          "deprecated": true,
+          "equals": true,
+          "versions": "-23.0.0"
+        },
+        "RequiresMount": {
+          "datatype": "BIT",
+          "code": 21,
+          "default_value": "off",
+          "equals": true
+        },
+        "OfflineOnUnmount": {
+          "datatype": "BIT",
+          "code": 13,
+          "default_value": "off",
+          "equals": true
+        },
+        "BlockChecksum": {
+          "datatype": "BIT",
+          "code": 23,
+          "default_value": "on",
+          "equals": true
+        },
+        "AccessMode": {
+          "datatype": "IO_DIRECTION",
+          "code": 0,
+          "default_value": "readwrite",
+          "equals": true,
+          "description": "Access mode specifies whether this device can be reserved for reading, writing or for both modes (default)."
+        },
+        "AutoSelect": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true
+        },
+        "ChangerDevice": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "ChangerCommand": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "AlertCommand": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumChangerWait": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "300",
+          "equals": true
+        },
+        "MaximumOpenWait": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "300",
+          "equals": true
+        },
+        "MaximumOpenVolumes": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "1",
+          "equals": true
+        },
+        "MaximumNetworkBufferSize": {
+          "datatype": "PINT32",
+          "code": 0,
+          "deprecated": true,
+          "equals": true,
+          "versions": "-24.0.0",
+          "description": "Replaced by MaximumNetworkBufferSize (SD->Storage)."
+        },
+        "VolumePollInterval": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "300",
+          "equals": true
+        },
+        "MaximumRewindWait": {
+          "datatype": "TIME",
+          "code": 0,
+          "default_value": "300",
+          "equals": true
+        },
+        "LabelBlockSize": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "64512",
+          "equals": true
+        },
+        "MinimumBlockSize": {
+          "datatype": "PINT32",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumBlockSize": {
+          "datatype": "MAX_BLOCKSIZE",
+          "code": 0,
+          "default_value": "1048576",
+          "equals": true
+        },
+        "MaximumFileSize": {
+          "datatype": "SIZE64",
+          "code": 0,
+          "default_value": "1000000000",
+          "equals": true
+        },
+        "VolumeCapacity": {
+          "datatype": "SIZE64",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumConcurrentJobs": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "1",
+          "equals": true
+        },
+        "SpoolDirectory": {
+          "datatype": "DIRECTORY",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumSpoolSize": {
+          "datatype": "SIZE64",
+          "code": 0,
+          "equals": true
+        },
+        "MaximumJobSpoolSize": {
+          "datatype": "SIZE64",
+          "code": 0,
+          "equals": true
+        },
+        "DriveIndex": {
+          "datatype": "PINT16",
+          "code": 0,
+          "equals": true
+        },
+        "MountPoint": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "MountCommand": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "UnmountCommand": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true
+        },
+        "LabelType": {
+          "datatype": "LABEL",
+          "code": 0,
+          "deprecated": true,
+          "equals": true,
+          "versions": "-23.0.0"
+        },
+        "NoRewindOnClose": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true
+        },
+        "DriveTapeAlertEnabled": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "equals": true
+        },
+        "DriveCryptoEnabled": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "equals": true
+        },
+        "QueryCryptoStatus": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "equals": true
+        },
+        "AutoDeflate": {
+          "datatype": "IO_DIRECTION",
+          "code": 0,
+          "equals": true,
+          "versions": "13.4.0-"
+        },
+        "AutoDeflateAlgorithm": {
+          "datatype": "COMPRESSION_ALGORITHM",
+          "code": 0,
+          "equals": true,
+          "versions": "13.4.0-"
+        },
+        "AutoDeflateLevel": {
+          "datatype": "PINT16",
+          "code": 0,
+          "default_value": "6",
+          "equals": true,
+          "versions": "13.4.0-"
+        },
+        "AutoInflate": {
+          "datatype": "IO_DIRECTION",
+          "code": 0,
+          "equals": true,
+          "versions": "13.4.0-"
+        },
+        "CollectStatistics": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "default_value": "true",
+          "equals": true
+        },
+        "EofOnErrorIsEot": {
+          "datatype": "BOOLEAN",
+          "code": 0,
+          "equals": true,
+          "versions": "18.2.4-",
+          "description": "If Yes, NQRustBackup will treat any read error at an end-of-file mark as end-of-tape. You should only set this option if your tape-drive fails to detect end-of-tape while reading."
+        },
+        "Count": {
+          "datatype": "PINT32",
+          "code": 0,
+          "default_value": "1",
+          "equals": true,
+          "description": "If Count is set to (1 < Count < 10000), duplicated devices will be created post-fixed with serial numbers 0000 up to Count. The 0000 device is automatically assigned 'Autoselect=No'. Additionally, an autochanger resource is created with the name of the device the Count directive is specified for. The duplicated devices will be assigned to this autochanger unless they are used in another autochanger already."
+        }
+      },
+      "Messages": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "MailCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "OperatorCommand": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "TimestampFormat": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Syslog": {
+          "datatype": "MESSAGES",
+          "code": 1,
+          "equals": true
+        },
+        "Mail": {
+          "datatype": "MESSAGES",
+          "code": 2,
+          "equals": true
+        },
+        "MailOnError": {
+          "datatype": "MESSAGES",
+          "code": 10,
+          "equals": true
+        },
+        "MailOnSuccess": {
+          "datatype": "MESSAGES",
+          "code": 11,
+          "equals": true
+        },
+        "File": {
+          "datatype": "MESSAGES",
+          "code": 3,
+          "equals": true
+        },
+        "Append": {
+          "datatype": "MESSAGES",
+          "code": 4,
+          "equals": true
+        },
+        "Stdout": {
+          "datatype": "MESSAGES",
+          "code": 5,
+          "equals": true
+        },
+        "Stderr": {
+          "datatype": "MESSAGES",
+          "code": 6,
+          "equals": true
+        },
+        "Director": {
+          "datatype": "MESSAGES",
+          "code": 7,
+          "equals": true
+        },
+        "Console": {
+          "datatype": "MESSAGES",
+          "code": 9,
+          "equals": true
+        },
+        "Operator": {
+          "datatype": "MESSAGES",
+          "code": 8,
+          "equals": true
+        },
+        "Catalog": {
+          "datatype": "MESSAGES",
+          "code": 12,
+          "equals": true
+        }
+      },
+      "Autochanger": {
+        "Name": {
+          "datatype": "NAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "Description": {
+          "datatype": "STRING",
+          "code": 0,
+          "equals": true
+        },
+        "Device": {
+          "datatype": "RESOURCE_LIST",
+          "code": 3,
+          "equals": true,
+          "required": true
+        },
+        "ChangerDevice": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        },
+        "ChangerCommand": {
+          "datatype": "STRNAME",
+          "code": 0,
+          "equals": true,
+          "required": true
+        }
+      }
+    }
+  }
+}

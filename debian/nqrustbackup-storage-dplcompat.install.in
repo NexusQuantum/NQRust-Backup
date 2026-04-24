@@ -1,0 +1,4 @@
+@backenddir@/libnqrustbackupsd-dplcompat.so*
+@scriptdir@/s3cmd-wrapper.sh
+@configtemplatedir@/nqrustbackup-dir.d/storage/dplcompat.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/dplcompat.conf.example

@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+# run nqrustbackup_extract and check it works
+
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+start_test
+
+JobName=backup-nqrustbackup-fd
+
+rm -rf "$tmp/nqrustbackup-restores"
+mkdir -p "$tmp/nqrustbackup-restores"
+run_nqrustbackup_extract -vv -V TestVolume001 FileStorage "$tmp/nqrustbackup-restores"
+ret=$?
+if [ $ret -ne 0 ]; then
+  echo "nqrustbackup_extract exit code: $ret"
+  stop_nqrustbackup
+  exit $ret
+else
+  find "$tmp/nqrustbackup-restores"
+  check_restore_diff "${BackupDirectory}"            # check extracted files
+  mv "$tmp/nqrustbackup-restores" "$tmp/nqrustbackup_extract-restores" # move extracted files away
+  mkdir -p "$tmp/nqrustbackup-restores"
+fi
+
+end_test

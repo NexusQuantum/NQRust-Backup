@@ -1,0 +1,4 @@
+@plugindir@/gfapi-fd.so
+@configtemplatedir@/nqrustbackup-dir.d/fileset/plugin-gfapi.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/job/BackupGFAPI.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/job/RestoreGFAPI.conf.example

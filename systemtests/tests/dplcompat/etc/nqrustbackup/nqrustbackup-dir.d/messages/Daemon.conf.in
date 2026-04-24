@@ -1,0 +1,6 @@
+Messages {
+  Name = Daemon
+  console = all, !skipped, !saved, !audit
+  append = "@logdir@/nqrustbackup.log" = all, !skipped, !audit
+  append = "@logdir@/nqrustbackup-audit.log" = audit
+}

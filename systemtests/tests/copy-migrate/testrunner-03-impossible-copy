@@ -1,0 +1,61 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+TestName=03-impossible-copy
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+log="$tmp/$TestName.log"
+
+check_logged()
+{
+  if ! grep -q "$@" "$log"; then
+    echo "'$*' not found in $log" >&2
+    estat=1
+  fi
+}
+check_not_logged()
+{
+  if grep -q "$@" "$log"; then
+    echo "'$*' found in $log" >&2
+    estat=1
+  fi
+}
+
+start_test
+
+cat <<END_OF_DATA >"$tmp/bconcmds"
+@$out ${NULL_DEV}
+messages
+@$out $log
+run job=backup-nqrustbackup-fd level=Full yes
+wait
+update volume=TestVolume001 volstatus=Used
+sqlquery
+UPDATE Media SET mediatype = 'NoSuchType' WHERE volumename = 'TestVolume001';
+
+
+run copy yes
+wait
+messages
+
+status storage=File2
+quit
+END_OF_DATA
+
+run_nqrustbackup_console "$tmp/bconcmds"
+
+check_for_zombie_jobs storage=File
+
+check_logged -F 'Changing read device. Want Media Type="NoSuchType"'
+check_logged -F '*** Copying Error ***'
+# check if there is a stale volume in the storage's volume list
+check_not_logged -F 'on device "FileStorage2" (storage)'
+
+end_test

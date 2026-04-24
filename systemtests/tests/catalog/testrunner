@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+#shellcheck source=../../environment.in
+. ./environment
+
+JobName=backup-nqrustbackup-fd
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+exit_failure()
+{
+  estat=1
+  end_test
+}
+
+start_test
+
+pushd "${NQRUSTBACKUP_UNITTESTS_BINARY_DIR}" >/dev/null
+"${CATALOG_TEST_PROGRAM}" || exit_failure
+popd 
+
+end_test

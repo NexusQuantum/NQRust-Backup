@@ -1,0 +1,69 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2024 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ * @author    Frank Bergkemper
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+$title = _('Director');
+$this->headTitle($title);
+?>
+
+<ul class="nav nav-tabs">
+   <li class="active"><a href="<?php echo $this->url('director', array('action'=>'index')); ?>"><?php echo $this->translate('Status'); ?></a></li>
+   <li><a href="<?php echo $this->url('director', array('action'=>'messages')); ?>"><?php echo $this->translate('Messages'); ?></a></li>
+   <li><a href="<?php echo $this->url('director', array('action'=>'subscription')); ?>"><?php echo $this->translate('Support Plan'); ?></a></li>
+</ul>
+
+<br />
+
+<?php if($this->acl_alert) : echo $this->ACLAlert($this->invalid_commands); else : ?>
+
+<div class="row">
+<div class="col-md-8">
+
+<div class="panel panel-default">
+
+<div class="panel-heading">
+   <h3 class="panel-title"><?php echo $this->translate("Director Status"); ?></h3>
+</div>
+
+<div class="panel-body">
+
+<pre class="dird-messages" style="height: 500px; font-size: 8pt;">
+<code>
+<?php echo $this->directorOutput; ?>
+</code>
+</pre>
+
+<?php
+    echo $this->translate('NQRust Backup Director Status') . ": ";
+    echo \NQRustBackup\Util::getVersionLabelAsHtml($_SESSION['nqrustbackup']['dird-update-info']);
+?>
+
+</div>
+
+</div>
+</div>
+</div>
+
+<?php endif; ?>

@@ -1,0 +1,3 @@
+@backenddir@/libnqrustbackupsd-gfapi.so*
+@configtemplatedir@/nqrustbackup-dir.d/storage/Gluster.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/GlusterStorage.conf.example

@@ -1,0 +1,5 @@
+@scriptdir@/ddl/*/postgresql*.sql
+/usr/share/dbconfig-common/data/nqrustbackup-database-common/install/pgsql
+/usr/share/dbconfig-common/data/nqrustbackup-database-common/upgrade-dbadmin/pgsql/*
+/usr/share/dbconfig-common/data/nqrustbackup-database-common/upgrade/pgsql/*
+/usr/share/dbconfig-common/scripts/nqrustbackup-database-common/upgrade/pgsql/*

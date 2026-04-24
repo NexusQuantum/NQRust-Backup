@@ -1,0 +1,1491 @@
+.. _DiskChapter:
+
+Volume Management
+=================
+
+.. index::
+   single: Volume; Management
+   single: Disk Volumes
+
+This chapter presents most all the features needed to do Volume management. Most of the concepts
+apply equally well to both tape and disk Volumes.
+However, the chapter was originally written to explain backing up to disk, so you will see it is
+slanted in that direction, but all the directives presented here apply equally well whether your
+volume is disk or tape.
+
+If you have a lot of hard disk storage or you absolutely must have your backups run within a small
+time window, you may want to direct NQRustBackup to backup to disk Volumes rather than tape Volumes.
+
+This chapter is intended to give you some of the options that are available to you so that
+you can manage either disk or tape volumes.
+
+Key Concepts and Resource Records
+---------------------------------
+
+.. index::
+   single: Volume; Management; Key Concepts and Resource Records
+
+Getting NQRustBackup to write to disk rather than tape in the simplest case is rather easy.
+In the Storage daemon’s configuration file, you simply define an
+:config:option:`sd/device/ArchiveDevice`\ to be a directory.
+
+The default directory to store backups on disk is :file:`/var/lib/nqrustbackup/storage`:
+
+
+.. code-block:: nqrustbackupconfig
+   :caption: |sd| FileStorage device definition
+
+
+   Device {
+     Name = FileStorage
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+   }
+
+
+
+Assuming you have the appropriate :config:option:`Dir/Storage`\  resource in your Director’s
+configuration file that references the above Device resource,
+
+
+.. code-block:: nqrustbackupconfig
+   :caption: |dir| File Storage definition pointing to |sd| Filestorage device
+
+
+   Storage {
+     Name = File
+     Address = ...
+     Password = ...
+     Device = FileStorage
+     Media Type = File
+   }
+
+
+
+NQRustBackup will then write the archive to the file :file:`/var/lib/nqrustbackup/storage/<volume-name>` where
+`<volume-name>` is the volume name of a Volume defined in the Pool. For example, if you have labeled
+a Volume named **Vol001**, NQRustBackup will write to the file :file:`/var/lib/nqrustbackup/storage/Vol001`.
+Although you can later move the archive file to another directory, you should not rename it or it
+will become unreadable by NQRustBackup.
+This is because each archive has the filename as part of the internal label, and the internal label
+must agree with the system filename before NQRustBackup will use it.
+
+Although this is quite simple, there are a number of problems. The first is that unless you specify
+otherwise, NQRustBackup will always write to the same volume until you run out of disk space.
+This problem is addressed below.
+
+In addition, if you want to use concurrent jobs that write to several different volumes at the same
+time, you will need to understand a number of other details. An example of such a configuration is
+given at the end of this chapter under :ref:`ConcurrentDiskJobs`.
+
+
+Pool Options to Limit the Volume Usage
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Pool; Options to Limit the Volume Usage
+
+Some of the options you have, all of which are specified in the Pool record, are:
+
+-  :config:option:`dir/pool/MaximumVolumeJobs`\ : write only the specified number of jobs on
+   each Volume.
+
+-  :config:option:`dir/pool/MaximumVolumeBytes`\ : limit the maximum size of each Volume.
+
+   Note, if you use disk volumes you should probably limit the Volume size to some reasonable value.
+   If you ever have a partial hard disk failure, you are more likely to be able to recover more data
+   if they are in smaller Volumes.
+
+-  :config:option:`dir/pool/VolumeUseDuration`\ : restrict the time between first and last data
+   written to Volume.
+
+Note that although you probably would not want to limit the number of bytes on a tape as you would
+on a disk Volume, the other options can be very useful in limiting the time NQRustBackup will use a
+particular Volume (be it tape or disk). For example, the above directives can allow you to ensure
+that you rotate through a set of daily Volumes if you wish.
+
+As mentioned above, each of those directives is specified in the Pool or Pools that you use for
+your Volumes. In the case of :config:option:`dir/pool/MaximumVolumeJobs`\ ,
+:config:option:`dir/pool/MaximumVolumeBytes`\ and :config:option:`dir/pool/VolumeUseDuration`\ ,
+you can actually specify the desired value on a Volume by Volume basis. The value specified in the
+Pool record becomes the default when labeling new Volumes. Once a Volume has been created, it gets
+its own copy of the Pool defaults, and subsequently changing the Pool will have no effect on
+existing Volumes. You can either manually change the Volume values, or refresh them from the Pool
+defaults using the :bcommand:`update volume` command in the Console.
+
+As an example of the use of one of the above, suppose your Pool resource contains:
+
+.. code-block:: nqrustbackupconfig
+   :caption: Volume Use Duration
+
+   Pool {
+     Name = File
+     Pool Type = Backup
+     Volume Use Duration = 23h
+   }
+
+then if you run a backup once a day (every 24 hours), NQRustBackup will use a new Volume for each backup,
+because each Volume it writes can only be used for 23 hours after the first write. Note, setting the
+use duration to 23 hours is not a very good solution for tapes unless you have someone on-site
+during the weekends, because NQRustBackup will want a new Volume and no one will be present to mount it,
+so no weekend backups will be done until Monday morning.
+
+
+.. _AutomaticLabeling:
+
+Automatic Volume Labeling
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Label; Automatic Volume Labeling
+   single: Volume; Labeling; Automatic
+
+Use of the above records brings up another problem – that of labeling your Volumes. For automated
+disk backup, you can either manually label each of your Volumes, or you can have NQRustBackup
+automatically label new Volumes when they are needed.
+
+Please note that automatic Volume labeling can also be used with tapes, but it is not nearly so
+practical since the tapes must be pre-mounted. This requires some user interaction. Automatic
+labeling from templates does **NOT** work with autochangers since NQRustBackup will not access unknown
+slots. There are several methods of labeling all volumes in an autochanger magazine.
+For more information on this, please see the :ref:`AutochangersChapter` chapter.
+
+Automatic Volume labeling is enabled by making a change to both the
+:config:option:`Dir/Pool`\  resource and to the :config:option:`Sd/Device`\  resource shown above.
+In the case of the Pool resource, you must provide NQRustBackup with a label format that it will use to
+create new names. In the simplest form, the label format is simply the Volume name, to which NQRustBackup
+will append a four digit number. This number starts at 0001 and is incremented for each Volume the
+catalog contains.
+
+Thus if you modify your Pool resource to be:
+
+.. code-block:: nqrustbackupconfig
+   :caption: Label Format
+
+   Pool {
+     Name = File
+     Pool Type = Backup
+     Volume Use Duration = 23h
+     Label Format = "Vol"
+   }
+
+NQRustBackup will create Volume names **Vol0001**, **Vol0002**, and so on when new Volumes are needed.
+Much more complex and elaborate labels can be created using variable expansion defined in the
+:ref:`Variable Expansion <VarsChapter>` chapter of this manual.
+
+The second change that is necessary to make automatic labeling work is to give the
+Storage Device permission to automatically label Volumes.
+
+Do so by adding :config:option:`sd/device/LabelMedia = yes`\ to the
+:config:option:`Sd/Device`\  resource as follows:
+
+.. code-block:: nqrustbackupconfig
+   :caption: Label Media = yes
+
+   Device {
+     Name = FileStorage
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage/
+     Maximum Concurrent Jobs = 1
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+   }
+
+See :config:option:`dir/pool/LabelFormat`\  for details about the labeling format.
+
+
+Restricting the Number of Volumes and Recycling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Recycling; Restricting the Number of Volumes and Recycling
+   single: Restricting the Number of Volumes and Recycling
+
+Automatic labeling discussed above brings up the problem of Volume management. With the above scheme,
+a new Volume will be created every day. If you have not specified Retention periods, your Catalog will
+continue to fill keeping track of all the files NQRustBackup has backed up, and this procedure will create
+one new archive file (Volume) every day.
+
+The tools NQRustBackup gives you to help automatically manage these problems are the following:
+
+-  :config:option:`dir/pool/VolumeRetention`\
+
+-  :config:option:`dir/pool/AutoPrune = yes`\  : permit the application of the
+   :config:option:`dir/pool/VolumeRetention`\  period.
+
+-  :config:option:`dir/pool/Recycle = yes`\  : permit automatic recycling of Volumes whose Volume
+   retention period has expired.
+
+-  :config:option:`dir/pool/RecycleOldestVolume = yes`\  : prune the oldest volume in the Pool, and
+   if all files were pruned, recycle this volume and use it.
+
+-  :config:option:`dir/pool/RecycleCurrentVolume = yes`\  : prune the currently mounted volume in
+   the Pool, and if all files were pruned, recycle this volume and use it.
+
+-  | :config:option:`dir/pool/PurgeOldestVolume = yes`\  : permits a forced recycling of the oldest
+   | Volume when a new one is needed.
+
+.. warning::
+
+   This record ignores retention periods! We highly
+   recommend  not to use this record, but instead use :config:option:`dir/pool/RecycleOldestVolume`\ .
+
+-  :config:option:`dir/pool/MaximumVolumes`\ : limit the number of Volumes that can be created.
+
+The first three records (:config:option:`dir/client/FileRetention`\ ,
+:config:option:`dir/client/JobRetention`\  and :config:option:`dir/client/AutoPrune`\ ) determine
+the amount of time that Job and File records will remain in your Catalog and they are discussed
+in detail in the :ref:`Automatic Volume Recycling <RecyclingChapter>` chapter.
+
+:config:option:`dir/pool/VolumeRetention`\ , :config:option:`dir/pool/AutoPrune`\  and
+:config:option:`dir/pool/Recycle`\  determine how long NQRustBackup will keep your Volumes before
+reusing them and they are also discussed in detail in
+the :ref:`Automatic Volume Recycling <RecyclingChapter>` chapter.
+
+The :config:option:`dir/pool/MaximumVolumes`\  record can also be used in conjunction with the
+:config:option:`dir/pool/VolumeRetention`\  period to limit the total number of archive Volumes
+that NQRustBackup will create. By setting an appropriate :config:option:`dir/pool/VolumeRetention`\
+period,
+a Volume will be purged just before it is needed and thus NQRustBackup can cycle through a fixed set of
+Volumes.
+Cycling through a fixed set of Volumes can also be done by setting
+:config:option:`dir/pool/PurgeOldestVolume = yes`\  or
+:config:option:`dir/pool/RecycleCurrentVolume = yes`\  .
+In this case, when NQRustBackup needs a new Volume, it will prune the specified volume.
+
+.. _ConcurrentDiskJobs:
+
+Concurrent Disk Jobs
+--------------------
+
+.. index::
+   single: Concurrent Disk Jobs
+
+Above, we discussed how you could have a single device named
+:config:option:`Sd/Device = FileStorage`\ that writes to volumes in :file:`/var/lib/nqrustbackup/storage/`.
+You can, in fact, run multiple concurrent jobs using the Storage definition given with this example,
+and all the jobs will simultaneously write into the Volume that is being written.
+
+Now suppose you want to use multiple Pools, which means multiple Volumes, or suppose you want each
+client to have its own Volume and perhaps its own directory such as
+:file:`/var/lib/nqrustbackup/storage/client1`\  and :file:`/var/lib/nqrustbackup/storage/client2`\  ... .
+With the single Storage and Device definition above, neither of these two is possible. Why? Because
+NQRustBackup disk storage follows the same rules as tape devices. Only one Volume can be mounted on any
+Device at any time. If you want to simultaneously write multiple Volumes, you will need multiple
+Device resources in your |sd| configuration and thus multiple Storage resources in your
+|dir| configuration.
+
+Okay, so now you should understand that you need multiple Device definitions in the case of
+different directories or different Pools, but you also need to know that the catalog data that
+NQRustBackup keeps contains only the **Media Type** and not the specific storage device. This permits a
+tape for example to be re-read on any compatible tape drive. The compatibility being determined by
+the **Media Type** (:config:option:`dir/storage/MediaType`\ and :config:option:`sd/device/MediaType`\ ).
+The same applies to disk storage. Since a volume that is written by a Device in say directory
+:file:`/var/lib/nqrustbackup/storage/backups`\ cannot be read by a Device with an
+:config:option:`sd/device/ArchiveDevice`\  = :file:`/var/lib/nqrustbackup/storage/client1`, you will
+not be able to restore all your files if you give both those devices
+:config:option:`sd/device/MediaType = File`\.
+During the restore, NQRustBackup will simply choose the first available device, which may not be the
+correct one. If this is confusing, just remember that the |dir| has only the **Media Type** and the
+**Volume Name**.
+It does not know the :config:option:`sd/device/ArchiveDevice`\  (or the full path) that is specified
+in the |sd|. Thus you must explicitly tie your Volumes to the correct Device
+by using the **Media Type**.
+
+Example for two clients, separate devices and recycling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following example is :strong:`not` very practical, but can be used to demonstrate the proof of
+concept in a relatively short period of time.
+
+The example consists of a two clients that are backed up to a set of 12 Volumes for each client into
+different directories on the Storage machine. Each Volume is used (written) only once, and there are
+four Full saves done every hour (so the whole thing cycles around after three hours).
+
+What is key here is that each physical device on the |sd| has a different **Media Type**. This
+allows the |dir| to choose the correct device for restores.
+
+The |dir| configuration is as follows:
+
+.. code-block:: nqrustbackupconfig
+
+   Director {
+     Name = nqrustbackup-dir
+     Password = "<secret>"
+   }
+
+   Schedule {
+     Name = "FourPerHour"
+     Run = Level=Full hourly at 0:05
+     Run = Level=Full hourly at 0:20
+     Run = Level=Full hourly at 0:35
+     Run = Level=Full hourly at 0:50
+   }
+
+   FileSet {
+     Name = "Example FileSet"
+     Include {
+       Options {
+         Compression = LZ4
+         Signature = XXH128
+       }
+       File = /etc
+     }
+   }
+
+   Job {
+     Name = "RecycleExample1"
+     Type = Backup
+     Level = Full
+     Client = client1-fd
+     FileSet= "Example FileSet"
+     Messages = Standard
+     Storage = FileStorage1
+     Pool = Recycle1
+     Schedule = FourPerHour
+   }
+
+   Job {
+     Name = "RecycleExample2"
+     Type = Backup
+     Level = Full
+     Client = client2-fd
+     FileSet= "Example FileSet"
+     Messages = Standard
+     Storage = FileStorage2
+     Pool = Recycle2
+     Schedule = FourPerHour
+   }
+
+   Client {
+     Name = client1-fd
+     Address = client1.example.com
+     Password = client1_password
+   }
+
+   Client {
+     Name = client2-fd
+     Address = client2.example.com
+     Password = client2_password
+   }
+
+   Storage {
+     Name = FileStorage1
+     Address = nqrustbackup-sd.example.com
+     Password = local_storage_password
+     Device = RecycleDir1
+     Media Type = File1
+   }
+
+   Storage {
+     Name = FileStorage2
+     Address = nqrustbackup-sd.example.com
+     Password = local_storage_password
+     Device = RecycleDir2
+     Media Type = File2
+   }
+
+   Catalog {
+     Name = MyCatalog
+     ...
+   }
+
+   Messages {
+     Name = Standard
+     ...
+   }
+
+   Pool {
+     Name = Recycle1
+     Pool Type = Backup
+     Label Format = "Recycle1-"
+     Auto Prune = yes
+     Use Volume Once = yes
+     Volume Retention = 2h
+     Maximum Volumes = 12
+     Recycle = yes
+     Storage = FileStorage1
+   }
+
+   Pool {
+     Name = Recycle2
+     Pool Type = Backup
+     Label Format = "Recycle2-"
+     Auto Prune = yes
+     Use Volume Once = yes
+     Volume Retention = 2h
+     Maximum Volumes = 12
+     Recycle = yes
+     Storage = FileStorage2
+   }
+
+and the |sd| configuration is:
+
+.. code-block:: nqrustbackupconfig
+
+   Storage {
+     Name = nqrustbackup-sd
+   }
+
+   Director {
+     Name = nqrustbackup-dir
+     Password = local_storage_password
+   }
+
+   Device {
+     Name = RecycleDir1
+     Media Type = File1
+     Maximum Concurrent Jobs = 1
+     Archive Device = /var/lib/nqrustbackup/storage/backups1
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+   }
+
+   Device {
+     Name = RecycleDir2
+     Media Type = File2
+     Maximum Concurrent Jobs = 1
+     Archive Device = /var/lib/nqrustbackup/storage/backups2
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+   }
+
+   Messages {
+     Name = Standard
+     director = nqrustbackup-dir = all
+   }
+
+With a little bit of work, you can change the above example into a weekly or monthly cycle
+(take care about the amount of archive disk space used).
+
+.. _section-MultipleStorageDevices:
+
+Using Multiple Storage Devices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Multiple Storage Devices
+   single: Storage Device; Multiple
+
+NQRustBackup treats disk volumes similar to tape volumes as much as it can. This means that you can only
+have a single Volume mounted at one time on a disk as defined in your
+:config:option:`Sd/Device`\  resource.
+
+If you use NQRustBackup without :ref:`section-DataSpooling`, multiple concurrent backup jobs can be
+written to a Volume using interleaving. However, interleaving has disadvantages,
+see :ref:`section-Interleaving`.
+
+Also the :config:option:`Sd/Device`\  will be in use. If there are other jobs, requesting other
+Volumes, these jobs have to wait.
+
+On a tape (or autochanger), this is a physical limitation of the hardware. However, when using disk
+storage, this is only a limitation of the software.
+
+To enable NQRustBackup to run concurrent jobs (on disk storage), define as many
+:config:option:`Sd/Device`\  as concurrent jobs should run.
+All these :config:option:`Sd/Device`\ s can use the same
+:config:option:`sd/device/ArchiveDevice`\  directory.
+
+Set :config:option:`sd/device/MaximumConcurrentJobs = 1`\ for all these devices.
+
+Example: use four storage devices pointing to the same directory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: nqrustbackupconfig
+   :caption: |dir| configuration: using 4 storage devices
+
+   Director {
+     Name = nqrustbackup-dir.example.com
+     Maximum Concurrent Jobs = 10
+     Password = "<secret>"
+   }
+
+   Storage {
+     Name = File
+     Address = nqrustbackup-sd.nqrustbackup.com
+     Password = "<sd-secret>"
+     Device = FileStorage1
+     Device = FileStorage2
+     Device = FileStorage3
+     Device = FileStorage4
+     # number of devices = Maximum Concurrent Jobs
+     Maximum Concurrent Jobs = 4
+     Media Type = File
+   }
+
+   [...]
+
+.. code-block:: nqrustbackupconfig
+   :caption: |sd| configuration: using 4 storage devices
+
+   Storage {
+     Name = nqrustbackup-sd.example.com
+   }
+
+   Director {
+     Name = nqrustbackup-dir.example.com
+     Password = "<sd-secret>"
+   }
+
+   Device {
+     Name = FileStorage1
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+   Device {
+     Name = FileStorage2
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+   Device {
+     Name = FileStorage3
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+   Device {
+     Name = FileStorage4
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+
+.. index::
+   single: Multiple Storage Devices
+   single: Storage Device; Multiple
+
+
+
+
+Example: use a virtual disk autochanger
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+NQRustBackup :sinceVersion:`25.0.0: Automatic Autochanger Configuration` introduced the
+feature that automatically a virtual disk autochanger is created.
+
+If :config:option:`sd/device/Count` is set to a value > 1 duplicated devices
+will be created starting from serial-number **0000** up to `Count`. The
+**0000** device is automatically configured with :config:option:`sd/device/AutoSelect = No`.
+
+Additionally, an autochanger resource is created with the name of the original device
+the :config:option:`sd/device/Count` directive is specified for. The duplicated devices will be
+assigned to this autochanger unless they are used in another autochanger already.
+
+The following block shows the configuration of the FileStorage device since
+NQRustBackup :sinceVersion:`25.0.0: Automatic Autochanger Configuration`.
+It automatically creates a virtual disk autochanger inside of the |sd| as described above.
+
+.. code-block:: nqrustbackupconfig
+   :caption: :file:`/etc/nqrustbackup/nqrustbackup-sd.d/device/FileStorage.conf` creating a 10x virtual disk autochanger
+
+   Device {
+     Name = FileStorage
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = yes                  # lets NQRustBackup label unlabeled media
+     Random Access = yes
+     Automatic Mount = yes              # when device opened, read it
+     Removable Media = no
+     Always Open = no
+     Description = "File device. A connecting Director must have the same Name and MediaType."
+     Count = 10 # Number of devices that should be created
+                # also check `Maximum Concurrent Jobs` in the
+                # directors storage setting
+   }
+
+The configuration above leads to the following output in :bcommand:`status storage=FileStorage`,
+showing the autogenerated autochanger and the attached devices.
+
+.. code-block:: nqrustbackup_console
+   :caption: autogenerated disk changer in `status storage` output
+
+   *<input>status storage=FileStorage</input>
+   [...]
+   Device status:
+   Autochanger "FileStorage" with devices:
+      "FileStorage0000" (/var/lib/nqrustbackup/storage)
+      "FileStorage0001" (/var/lib/nqrustbackup/storage)
+      "FileStorage0002" (/var/lib/nqrustbackup/storage)
+      "FileStorage0003" (/var/lib/nqrustbackup/storage)
+      "FileStorage0004" (/var/lib/nqrustbackup/storage)
+      "FileStorage0005" (/var/lib/nqrustbackup/storage)
+      "FileStorage0006" (/var/lib/nqrustbackup/storage)
+      "FileStorage0007" (/var/lib/nqrustbackup/storage)
+      "FileStorage0008" (/var/lib/nqrustbackup/storage)
+      "FileStorage0009" (/var/lib/nqrustbackup/storage)
+      "FileStorage0010" (/var/lib/nqrustbackup/storage)
+
+   [...]
+
+
+This mechanism makes it extremely easy to create virtual disk autochangers and to replace existing
+single devices with a disk autochanger.
+
+The only thing that is left do to is to tell the |dir| that this device now is able to run 10
+Concurrent jobs by setting the :config:option:`dir/storage/MaximumConcurrentJobs` to 10.
+
+.. code-block:: nqrustbackupconfig
+   :caption: :file:`/etc/nqrustbackup/nqrustbackup-dir.d/storage/File.conf` Set Maximum Concurrent Jobs
+
+   Storage {
+     Name = File
+     Address = nqrustbackup-sd.example.com
+     Password = "9Y5n2p7dcJjsKEcbBysYjyIqWr+YglWzY3HElzmm1BpW"
+     Device = FileStorage
+     Media Type = File
+     Maximum Concurrent Jobs = 10 # should be high enough
+                                  # to allow the use all
+                                  # configured devices
+   }
+
+
+.. warning::
+
+   The manual setup of a virtual disk autochanger is not required anymore in
+   NQRustBackup 25. Please refer to the paragraph above how to setup a virtual disk
+   changer automatically. The following paragraph is only left for reference
+   purposes.
+
+If you still want to manually configure a virtual autochanger, you will find examples files that
+might help you with your setup.
+Compared to the previous example, you will not be forced to declare each device in the
+dir storage definition, only the autochanger name will be declared, and with the use of
+:config:option:`sd/device/Count`\  auto-numbering device you can adjust the number of needed drives.
+
+See also :ref:`StorageResourceMultipliedDevice`
+
+
+.. literalinclude:: ../../../../core/src/stored/backends/unix_file_device.d/nqrustbackup-dir.d/storage/File.conf.example.in
+   :language: nqrustbackupconfig
+   :caption: nqrustbackup-dir.d/storage/File.conf configuration: using an virtual file autochanger with 10 drives
+
+.. literalinclude:: ../../../../core/src/stored/backends/unix_file_device.d/nqrustbackup-sd.d/autochanger/FileStorage.conf.example
+   :language: nqrustbackupconfig
+   :caption: nqrustbackup-sd.d/autochanger/FileStorage.conf using a virtual file autochanger with auto-numbered devices
+
+.. literalinclude:: ../../../../core/src/stored/backends/unix_file_device.d/nqrustbackup-sd.d/device/FileStorage.conf.example
+   :language: nqrustbackupconfig
+   :caption: nqrustbackup-sd.d/device/File.conf using auto-numbered devices
+
+
+
+.. _RecyclingChapter:
+
+Automatic Volume Recycling
+--------------------------
+
+.. index::
+   single: Recycle; Automatic Volume
+   single: Volume; Recycle; Automatic
+
+By default, once NQRustBackup starts writing a Volume, it can append to the volume, but it will not
+overwrite the existing data thus destroying it. However when NQRustBackup recycles a Volume, the Volume
+becomes available for being reused and NQRustBackup can at some later time overwrite the previous contents
+of that Volume. Thus all previous data will be lost. If the Volume is a tape, the tape will be
+rewritten from the beginning.
+If the Volume is a disk file, the file will be truncated before being rewritten.
+
+You may not want NQRustBackup to automatically recycle (reuse) tapes. This would require a large number of
+tapes though, and in such a case, it is possible to manually recycle tapes. For more on manual
+recycling, see the :ref:`manualrecycling` chapter.
+
+Most people prefer to have a Pool of tapes that are used for daily backups and recycled once a week,
+another Pool of tapes that are used for Full backups once a week and recycled monthly, and finally a
+Pool of tapes that are used once a month and recycled after a year or two. With a scheme like this,
+the number of tapes in your pool or pools remains constant.
+
+By properly defining your Volume Pools with appropriate Retention periods, NQRustBackup can manage the
+recycling (such as defined above) automatically.
+
+Automatic recycling of Volumes is controlled by four records in the :config:option:`Dir/Pool`
+resource definition. These four records are:
+
+-  :config:option:`dir/pool/AutoPrune = yes`\
+
+-
+
+   :config:option:`dir/pool/VolumeRetention`\
+
+-  :config:option:`dir/pool/Recycle = yes`\
+
+-
+
+   :config:option:`dir/pool/RecyclePool`\
+
+The above three directives are all you need assuming that you fill each of your Volumes then wait
+the Volume Retention period before reusing them. If you want NQRustBackup to stop using a Volume and
+recycle it before it is full, you can use one or more additional directives such as:
+
+-
+
+   :config:option:`dir/pool/VolumeUseDuration`\
+
+-
+
+   :config:option:`dir/pool/MaximumVolumeJobs`\
+
+-
+
+   :config:option:`dir/pool/MaximumVolumeBytes`\
+
+Please see below and the :ref:`Basic Volume Management <DiskChapter>` chapter of this manual
+for complete examples.
+
+Automatic recycling of Volumes is performed by NQRustBackup only when it wants a new Volume and no
+appendable Volumes are available in the Pool. It will then search the Pool for any Volumes with
+the ``Recycle`` flag set and the Volume Status is ``Purged``.
+At that point, it will choose the oldest purged volume and recycle it.
+
+If there are no volumes with status ``Purged``, then the recycling occurs in two steps:
+
+#. The Catalog for a Volume must be pruned of all Jobs (i.e. ``Purged``).
+
+#. The actual recycling of the Volume.
+
+Only Volumes marked ``Full`` or ``Used`` will be considered for pruning. The Volume will be purged
+if the :config:option:`dir/pool/VolumeRetention`\ period has expired.
+When a Volume is marked as ``Purged``, it means that no Catalog records reference that Volume and
+the Volume can be recycled.
+
+Until recycling actually occurs, the Volume data remains intact. If no Volumes can be found for
+recycling for any of the reasons stated above, NQRustBackup will request operator intervention
+(i.e. it will ask you to label a new volume).
+
+A key point mentioned above, that can be a source of frustration, is that NQRustBackup
+will only recycle purged Volumes if there is no other unlabeled or appendable
+Volume available. Otherwise, it will always write to an unlabeled or appendable
+Volume before recycling even if there are Volume marked as ``Purged``. This preserves
+your data as long as possible. So, if you wish to "force" NQRustBackup to use a purged
+Volume, you must first ensure that no other Volume in the Pool is marked as
+``Unlabeled`` or ``Append``. If necessary, you can manually set a volume to ``Used``.
+The reason for this is that NQRustBackup wants to preserve the data on your old medium
+(even though purged from the catalog) as long as absolutely possible before
+overwriting it.
+There are also a number of directives such as :config:option:`dir/pool/VolumeUseDuration`\
+that will automatically mark a volume as ``Used`` and thus no longer appendable.
+
+.. _AutoPruning:
+
+Automatic Pruning
+~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Automatic; Pruning
+   single: Pruning; Automatic
+
+As NQRustBackup writes files to tape, it keeps a list of files, jobs, and volumes in a database called the
+catalog. Among other things, the database helps NQRustBackup to decide which files to back up in an
+incremental or differential backup, and helps you locate files on past backups when you want to
+restore something. However, the catalog will grow larger and larger as time goes on, and eventually
+it can become unacceptably large.
+
+NQRustBackup’s process for removing entries from the catalog is called Pruning. The default is **Automatic
+Pruning**, which means that once an entry reaches a certain age (e.g. 30 days old) it is removed
+from the catalog. Note that Job records that are required for current restore and File records are
+needed for VirtualFull and Accurate backups won’t be removed automatically.
+
+Once a job has been pruned, you can still restore it from the backup tape, but one additional step
+is required: scanning the volume with :command:`nqrustbackup_scan`.
+
+The alternative to Automatic Pruning is Manual Pruning, in which you explicitly tell NQRustBackup to erase
+the catalog entries for a volume. You’d usually do this when you want to reuse a NQRustBackup volume,
+because there’s no point in keeping a list of files that USED TO BE on a tape. Or, if the catalog is
+starting to get too big, you could prune the oldest jobs to save space.
+Manual pruning is done with the :ref:`prune command <ManualPruning>` in the console.
+
+Pruning Directives
+~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Pruning; Directives
+
+There are three pruning durations. All apply to catalog database records and not to the actual data
+in a Volume. The pruning (or retention) durations are for: Volumes (Media records), Jobs
+(Job records), and Files (File records).
+The durations inter-depend because if NQRustBackup prunes a Volume, it automatically removes all the Job
+records, and all the File records.
+Also when a Job record is pruned, all the File records for that Job are also pruned (deleted)
+from the catalog.
+
+Having the File records in the database means that you can examine all the files backed up
+for a particular Job.
+They take the most space in the catalog (probably 90-95% of the total). When the File records are
+pruned, the Job records can remain, and you can still examine what Jobs ran, but not the details of
+the Files backed up.
+In addition, without the File records, you cannot use the Console restore command to restore
+the files.
+
+When a Job record is pruned, the Volume (Media record) for that Job can still remain in the database,
+and if you do a :bcommand:`list volumes`, you will see the volume information, but the Job records
+(and its File records) will no longer be available.
+
+In each case, pruning removes information about where older files are, but it also prevents the
+catalog from growing to be too large. You choose the retention periods in function of how many files
+you are backing up and the time periods you want to keep those records online, and the size of the
+database.
+It is possible to re-insert the records (with 98% of the original data) by using :command:`nqrustbackup_scan` to
+scan in a whole Volume or any part of the volume that you want.
+
+By setting :config:option:`dir/pool/AutoPrune = yes`\  you will permit the |dir| to automatically
+prune all Volumes in the Pool when a Job needs another Volume. Volume pruning means removing records
+from the catalog. It does not shrink the size of the Volume or affect the Volume data until the
+Volume gets overwritten. When a Job requests another volume and there are no Volumes with Volume
+status ``Unlabeled`` or ``Append`` available, NQRustBackup will begin volume pruning. This means that all
+Jobs that are older than the :config:option:`dir/pool/VolumeRetention`\ period will be pruned from
+every Volume that has Volume status ``Full`` or ``Used`` and has
+:config:option:`dir/pool/Recycle = yes`\ . Pruning consists of deleting the corresponding **Job**,
+**File**, and **JobMedia** records from the catalog database.
+No change to the physical data on the Volume occurs during the pruning process. When all files are
+pruned from a Volume (i.e. no records in the catalog), the Volume will be marked as ``Purged``
+implying that no Jobs remain on the volume.
+
+The Pool records that control the pruning are described below.
+
+:config:option:`dir/pool/AutoPrune =yes`\
+   when running a Job and it needs a new Volume but no appendable volumes are available,
+   apply the Volume retention period.
+   At that point, NQRustBackup will prune all Volumes that can be pruned in an attempt to find
+   a usable volume.
+   If during the autoprune, all files are pruned from the Volume, it will be marked with
+   Volume status ``Purged``.
+
+   Note, that although the File and Job records may be pruned from the catalog, a Volume
+   will only be marked ``Purged`` (and hence ready for recycling) if the Volume status is
+   ``Unlabeled``, ``Append``, ``Full``, ``Used``, or ``Error``.
+   If the Volume has another status, such as ``Archive``, ``Read-Only``, ``Disabled``, ``Busy``
+   or ``Cleaning``, the Volume status will not be changed.
+
+:config:option:`dir/pool/VolumeRetention`\
+   defines the length of time that NQRustBackup will guarantee that the Volume is not reused counting
+   from the time the last job stored on the Volume terminated. A key point is that this time period
+   is not even considered as long at the Volume remains appendable.
+   The Volume Retention period count down begins only when the ``Append`` status has been changed
+   to some other status (``Full``, ``Used``, ``Purged``, ...).
+
+   When this time period expires and if :config:option:`dir/pool/AutoPrune = yes`\  and a new Volume
+   is needed, but no appendable Volume is available, NQRustBackup will prune (remove) Job records that are
+   older than the specified :config:option:`dir/pool/VolumeRetention`\ period.
+
+   The :config:option:`dir/pool/VolumeRetention`\ period takes precedence over any
+   :config:option:`dir/client/JobRetention`\  period you have specified in the Client resource.
+   It should also be noted, that the :config:option:`dir/pool/VolumeRetention`\ period is obtained
+   by reading the Catalog Database Media record rather than the Pool resource record.
+   This means that if you change the :config:option:`dir/pool/VolumeRetention`\  in the Pool
+   resource record, you must ensure that the corresponding change is made in the catalog by using
+   the :bcommand:`update pool` command.
+   Doing so will insure that any new Volumes will be created with the changed
+   :config:option:`dir/pool/VolumeRetention`\ period.
+   Any existing Volumes will have their own copy of the
+   :config:option:`dir/pool/VolumeRetention`\ period that can only be changed on a Volume by Volume
+   basis using the :bcommand:`update volume` command.
+
+   When all file catalog entries are removed from the volume, its Volume status is set to
+   ``Purged``. The files remain physically on the Volume until the volume is overwritten.
+
+:config:option:`dir/pool/Recycle`\
+   defines whether or not the particular Volume can be recycled (i.e. rewritten). If Recycle is set
+   to :strong:`no`, then even if NQRustBackup prunes all the Jobs on the volume and it is marked ``Purged``,
+   it will not consider the tape for recycling. If Recycle is set to :strong:`yes` and all Jobs have
+   been pruned, the volume status will be set to ``Purged`` and the volume may then be reused when
+   another volume is needed. If the volume is reused, it is relabeled with the same Volume Name,
+   however all previous data will be lost.
+
+
+Recycling Algorithm
+~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Algorithm; Recycling
+   single: Recycle; Algorithm
+
+
+.. _RecyclingAlgorithm:
+
+
+
+.. _Recycling:
+
+
+
+After all Volumes of a Pool have been pruned (as mentioned above, this happens when a Job needs a
+new Volume and no appendable Volumes are available), NQRustBackup will look for the oldest Volume that is
+``Purged`` (all Jobs and Files expired), and if the :config:option:`dir/pool/Recycle = yes`\ for
+that Volume, NQRustBackup will relabel it and write new data on it.
+
+As mentioned above, there are two key points for getting a Volume to be recycled. First, the Volume
+must no longer be marked ``Append`` (there are a number of directives to automatically make this
+change), and second since the last write on the Volume, one or more of the retention periods must
+have expired so that there are no more catalog backup job records that reference that Volume.
+Once both those conditions are satisfied, the volume can be marked ``Purged`` and hence recycled.
+
+The full algorithm that NQRustBackup uses when it needs a new Volume is:
+
+.. index::
+   single: New Volume Algorithm
+   single: Algorithm; New Volume
+
+The algorithm described below assumes that :config:option:`dir/pool/AutoPrune = yes`\,
+that :config:option:`dir/pool/Recycle = yes`\, and that you have defined appropriate retention
+periods or used the defaults for all these items.
+
+#. If the request is for an **AutoChanger** device, look only for Volumes in the Autochanger
+   (i.e. with **InChanger** set and that have the correct Storage device).
+
+#. Search the Pool for a Volume with Volume status ``Unlabeled``.
+
+#. Search the Pool for a Volume with Volume status ``Append`` (if there is more than one, the
+   Volume with the oldest date last written is chosen. If two have the same date then the one
+   with the lowest **MediaId** is chosen).
+
+#. Search the Pool for a Volume with Volume status ``Recycle`` and the **InChanger** flag is set
+   **True** (if there is more than one, the Volume with the oldest date **LastWritten** is chosen.
+   If two have the same date then the one with the lowest **MediaId** is chosen).
+
+#. Try recycling any purged Volumes.
+
+#. Prune volumes applying Volume retention period (Volumes with Volume status ``Full`` or ``Used``
+   are pruned). Note, even if all the File and Job records are pruned from a Volume,
+   the Volume will not be marked ``Purged`` until the Volume retention period expires.
+
+#. Search the Pool for a Volume with Volume status ``Purged``.
+
+#. If a Pool named :config:option:`dir/pool = Scratch`\  exists, search for a Volume and if found
+   move it to the current Pool for the Job and use it. Note, when the Scratch Volume is moved into
+   the current Pool, the basic Pool defaults are applied as if it is a newly labeled Volume
+   (equivalent to an :bcommand:`update volume from pool` console command).
+
+#. If we were looking for Volumes in the Autochanger, go back to step 2 above, but this time, look
+   for any Volume whether or not it is in the Autochanger.
+
+#. Attempt to create a new Volume if :config:option:`sd/device/LabelMedia = yes`\. If the maximum
+   number of Volumes specified for the pool is reached, no new Volume will be created.
+
+#. Prune the oldest Volume if :config:option:`dir/pool/RecycleOldestVolume = yes`\  (the Volume
+   with the oldest ``LastWritten`` date and ``VolStatus`` equal to ``Full``, ``Recycle``,
+   ``Purged`` or ``Used`` is chosen). This record ensures that all retention periods
+   are properly respected.
+
+#. Purge the oldest Volume if :config:option:`dir/pool/PurgeOldestVolume = yes`\ (the Volume with
+   the oldest **LastWritten** date and **VolStatus** equal to ``Full``, ``Recycle``, ``Purged``,
+   or ``Used`` is chosen).
+
+   .. warning::
+
+      We strongly recommend against the use of :config:option:`dir/pool/PurgeOldestVolume`\  as it
+      can quite easily lead to loss of current backup data.
+
+#. Give up and ask operator.
+
+The above occurs when NQRustBackup has finished writing a Volume or when no Volume is present in the drive.
+
+On the other hand, if you have inserted a different Volume after the last job, and NQRustBackup recognizes
+the Volume as valid, it will request authorization from the Director to use this Volume. In this
+case, if you have set :config:option:`dir/pool/RecycleCurrentVolume = yes`\  and the Volume is
+marked as ``Used`` or ``Full``, NQRustBackup will prune the volume and if all jobs were removed during
+the pruning (respecting the retention periods), the Volume will be recycled and used.
+
+The recycling algorithm in this case is:
+
+-  If the Volume status is ``Unlabeled``, ``Append`` or ``Recycle``, the volume will be used.
+
+-  If :config:option:`dir/pool/RecycleCurrentVolume = yes`\  and the volume is marked ``Full``
+   or ``Used``, NQRustBackup will prune the volume (applying the retention period). If all Jobs are
+   pruned from the volume, it will be recycled.
+
+This permits users to manually change the Volume every day and load tapes in an order different from
+what is in the catalog, and if the volume does not contain a current copy of your backup data,
+it will be used.
+
+A few points from Alan Brown to keep in mind:
+
+-  If :config:option:`dir/pool/MaximumVolumes`\  is not set, NQRustBackup will prefer to demand new
+   volumes over forcibly purging older volumes.
+
+-  If volumes become free through pruning and the Volume retention period has expired, then they
+   get marked as ``Purged`` and are immediately available for recycling - these will be used in
+   preference to creating new volumes.
+
+.. warning::
+
+   There's no mechanism to recycle or purge volume with a volume status in ``Error``. It must be
+   manually purged or updated to another status.
+
+
+Recycle Status
+~~~~~~~~~~~~~~
+
+.. index::
+   single: Recycle Status
+
+Each Volume inherits the **Recycle** status (yes or no) from the Pool resource record when the
+Media record is created (normally when the Volume is labeled). This **Recycle** status is stored in
+the Media record of the Catalog. Using the Console program, you may subsequently change the
+**Recycle** status for each Volume.
+
+For example in the following output from console command :bcommand:`list volumes`\ :
+
+
+.. code-block:: nqrustbackup_console
+   :caption: nqrustbackup_console list volumes with different volume status
+
+
+   +----------+-------+--------+---------+------------+--------+-----+
+   | VolumeNa | Media | VolSta | VolByte | LastWritte | VolRet | Rec |
+   +----------+-------+--------+---------+------------+--------+-----+
+   | File0001 | File  | Full   | 4190055 | 2012-05-25 | 14400  | 1   |
+   | File0002 | File  | Full   | 1896460 | 2012-05-26 | 14400  | 1   |
+   | File0003 | File  | Full   | 1896460 | 2012-05-26 | 14400  | 1   |
+   | File0004 | File  | Full   | 1896460 | 2012-05-26 | 14400  | 1   |
+   | File0005 | File  | Full   | 1896460 | 2012-05-26 | 14400  | 1   |
+   | File0006 | File  | Full   | 1896460 | 2012-05-26 | 14400  | 1   |
+   | File0007 | File  | Purged | 1896466 | 2012-05-26 | 14400  | 1   |
+   +----------+-------+--------+---------+------------+--------+-----+
+
+
+
+all the volumes are marked as recyclable, and the last Volume, **File0007** has been purged, so it
+may be immediately recycled. The other volumes are all marked recyclable and when their Volume
+Retention period (14400 seconds or four hours) expires, they will be eligible for pruning, and
+possibly recycling.
+Even though Volume **File0007** has been purged, all the data on the Volume is still recoverable.
+A purged Volume simply means that there are no entries in the Catalog. Even if the Volume Status is
+changed to ``Recycle``, the data on the Volume will be recoverable.
+The data is lost only when the Volume is re-labeled, re-written or truncated.
+
+To modify Volume **File0001** so that it cannot be recycled, you use the console command
+:bcommand:`update volume=File0001 pool=File volstatus=Error` in the console program, or
+simply run :bcommand:`update` console command and NQRustBackup will prompt you for the information.
+
+
+
+.. code-block:: nqrustbackup_console
+   :caption: nqrustbackup_console list volumes with volume status error
+
+
+   +----------+------+-------+---------+-------------+-------+-----+
+   | VolumeNa | Media| VolSta| VolByte | LastWritten | VolRet| Rec |
+   +----------+------+-------+---------+-------------+-------+-----+
+   | File0001 | File | Error | 4190055 | 2012-05-25  | 14400 | 0   |
+   | File0002 | File | Full  | 1897236 | 2012-05-26  | 14400 | 1   |
+   | File0003 | File | Full  | 1896460 | 2012-05-26  | 14400 | 1   |
+   | File0004 | File | Full  | 1896460 | 2012-05-26  | 14400 | 1   |
+   | File0005 | File | Full  | 1896460 | 2012-05-26  | 14400 | 1   |
+   | File0006 | File | Full  | 1896460 | 2012-05-26  | 14400 | 1   |
+   | File0007 | File | Purged| 1896466 | 2012-05-26  | 14400 | 1   |
+   +----------+------+-------+---------+-------------+-------+-----+
+
+
+
+In this case, **File0001** will never be automatically recycled. The same effect can be achieved
+by setting the Volume Status to ``Read-Only``.
+
+As you have noted, the Volume Status (**VolStatus**) column in the catalog database contains the
+current status of the Volume, which is normally maintained automatically by NQRustBackup. To give you
+an idea of some of the values it can take during the life cycle of a Volume, here is a picture
+created by Arno Lehmann:
+
+
+::
+
+   A typical volume life cycle is like this:
+
+                 because job count or size limit exceeded
+         Append  -------------------------------------->  Used/Full
+           ^                                                  |
+           | First Job writes to        Retention time passed |
+           | the volume                   and recycling takes |
+           |                                            place |
+           |                                                  v
+         Recycled <-------------------------------------- Purged
+                        Volume is selected for reuse
+
+
+
+Daily, Weekly, Monthly Tape Usage Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This example is meant to show you how one could define a fixed set of volumes that NQRustBackup will
+rotate through on a regular schedule. There are an infinite number of such schemes, all of which
+have variouscadvantages and disadvantages.
+
+We start with the following assumptions:
+
+-  A single tape has more than enough capacity to do a full save.
+
+-  There are ten tapes that are used on a daily basis for incremental backups.
+   They are prelabeled **Daily1** ... **Daily10**.
+
+-  There are four tapes that are used on a weekly basis for full backups.
+   They are labeled **Week1** ... **Week4**.
+
+-  There are 12 tapes that are used on a monthly basis for full backups.
+   They are numbered **Month1** ... **Month12**
+
+-  A full backup is done every Saturday evening (tape inserted Friday evening before leaving work).
+
+-  No backups are done over the weekend (this is easy to change).
+
+-  The first Friday of each month, a Monthly tape is used for the Full backup.
+
+-  Incremental backups are done Monday - Friday (actually Tue-Fri mornings).
+
+We start the system by doing a Full save to one of the weekly volumes or one of the monthly volumes.
+The next morning, we remove the tape and insert a Daily tape. Friday evening, we remove the Daily
+tape and insert the next tape in the Weekly series. Monday, we remove the Weekly tape and re-insert
+the Daily tape. On the first Friday of the next month, we insert the next Monthly tape in the series
+rather than a Weekly tape, then continue. When a Daily tape finally fills up, NQRustBackup will request
+the next one in the series, and the next day when you notice the email message, you will mount it
+and NQRustBackup will finish the unfinished incremental backup.
+
+What does this give? Well, at any point, you will have the last complete Full save plus several
+Incremental saves. For any given file you want to recover (or your whole system), you will have
+a copy of that file every day for at least the last 14 days. For older versions, you will have at
+least three and probably four Friday full saves of that file, and going back further, you will
+have a copy of that file made on the beginning of the month for at least a year.
+
+So you have copies of any file (or your whole system) for at least a year, but as you go back
+in time, the time between copies increases from daily to weekly to monthly.
+
+What would the NQRustBackup configuration look like to implement such a scheme?
+
+
+
+.. code-block:: nqrustbackupconfig
+   :caption: |dir| subset sample configuration
+
+
+   Schedule {
+     Name = "NightlySave"
+     Run = Level=Full Pool=Monthly 1st sat at 03:05
+     Run = Level=Full Pool=Weekly 2nd-5th sat at 03:05
+     Run = Level=Incremental Pool=Daily tue-fri at 03:05
+   }
+   Job {
+     Name = "NightlySave"
+     Type = Backup
+     Level = Full
+     Client = LocalMachine
+     FileSet = "FileSet"
+     Messages = Standard
+     Storage = File
+     Pool = Daily
+     Schedule = "NightlySave"
+   }
+   # Definition of file storage device
+   Storage {
+     Name = File
+     Address = nqrustbackup-sd.example.com
+     Port = 9103
+     Password = XXXXXXXXXXXXX
+     Device = FileStorage
+     Media Type = File
+   }
+   FileSet {
+     Name = "FileSet"
+     Include {
+       Options {
+         signature=XXH128
+       }
+       File = fffffffffffffffff
+     }
+     Exclude  { File=*.o }
+   }
+   Pool {
+     Name = Daily
+     Pool Type = Backup
+     AutoPrune = yes
+     VolumeRetention = 10d   # recycle in 10 days
+     Maximum Volumes = 10
+     Recycle = yes
+   }
+   Pool {
+     Name = Weekly
+     Use Volume Once = yes
+     Pool Type = Backup
+     AutoPrune = yes
+     VolumeRetention = 30d  # recycle in 30 days (default)
+     Recycle = yes
+   }
+   Pool {
+     Name = Monthly
+     Use Volume Once = yes
+     Pool Type = Backup
+     AutoPrune = yes
+     VolumeRetention = 365d  # recycle in 1 year
+     Recycle = yes
+   }
+
+.. code-block:: nqrustbackupconfig
+   :caption: |sd| subset corresponding sample configuration
+
+   Storage {
+     Name = nqrustbackup-sd.example.com
+   }
+
+   Director {
+     Name = nqrustbackup-dir.example.com
+     Password = "<sd-secret>"
+   }
+
+   Device {
+     Name = FileStorage
+     Media Type = File
+     Archive Device = /var/lib/nqrustbackup/storage
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+
+
+.. _PruningExample:
+
+Automatic Pruning and Recycling Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Automatic; Pruning and Recycling Example
+   single: Example; Automatic Pruning and Recycling
+   single: Pruning; Automatic; Example
+   single: Recycle; Automatic; Example
+
+Perhaps the best way to understand the various resource records that come into play during automatic
+pruning and recycling is to run a Job that goes through the whole cycle. If you add the following
+resources to your Director’s configuration file:
+
+
+
+.. code-block:: nqrustbackupconfig
+   :caption: |dir| subset pruning - recycle sample configuration
+
+
+   Schedule {
+     Name = "30 minute cycle"
+     Run = Level=Full Pool=File Messages=Standard Storage=File
+            hourly at 0:05
+     Run = Level=Full Pool=File Messages=Standard Storage=File
+            hourly at 0:35
+   }
+   Job {
+     Name = "Filetest"
+     Type = Backup
+     Level = Full
+     Client=XXXXXXXXXX
+     FileSet="FileSet"
+     Messages = Standard
+     Storage = File
+     Pool = File
+     Schedule = "30 minute cycle"
+   }
+   # Definition of file storage device
+   Storage {
+     Name = File
+     Address = XXXXXXXXXXX
+     Port = 9103
+     Password = XXXXXXXXXXXXX
+     Device = FileStorage
+     Media Type = File
+   }
+   FileSet {
+     Name = "FileSet"
+     Include {
+       Options {
+         signature=MD5
+       }
+       File = fffffffffffffffff
+     }
+     Exclude  { File=*.o }
+   }
+   Pool {
+     Name = File
+     Use Volume Once = yes
+     Pool Type = Backup
+     LabelFormat = "File"
+     AutoPrune = yes
+     VolumeRetention = 4h
+     Maximum Volumes = 12
+     Recycle = yes
+   }
+
+
+
+Where you will need to replace the **ffffffffff**’s by the appropriate files to be saved for
+your configuration. For the :config:option:`dir/FileSet/Include/File`\ , choose a directory
+that has one or two megabytes maximum since there will probably be approximately eight copies
+of the directory that NQRustBackup will cycle through.
+
+In addition, you will need to add the following to your Storage daemon’s configuration file:
+
+.. code-block:: nqrustbackupconfig
+   :caption: |sd| subset pruning & recycling sample configuration
+
+
+   Device {
+     Name = FileStorage
+     Media Type = File
+     Archive Device = /tmp
+     Label Media = Yes
+     Random Access = Yes
+     Automatic Mount = Yes
+     Removable Media = No
+     Always Open = No
+     Maximum Concurrent Jobs = 1
+   }
+
+
+
+With the above resources, NQRustBackup will start a Job every half hour that saves a copy of the directory
+you chose to :file:`/tmp/File0001` ... :file:`/tmp/File0012`. After 4 hours, NQRustBackup will start
+recycling the backup Volumes (:file:`/tmp/File0001` ...). You should see this happening in the
+output produced. NQRustBackup will automatically create the Volumes (Files) the first time it uses them.
+
+To turn it off, either delete all the resources you’ve added, or simply comment out the
+**Schedule** record in the **Job** resource.
+
+
+
+.. _manualrecycling:
+
+Manually Recycling Volumes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. index::
+   single: Volume; Recycle; Manual
+   single: Recycle; Manual
+
+Although automatic recycling of Volumes is implemented (see the :ref:`RecyclingChapter` chapter of
+this manual), you may want to manually force reuse (recycling) of a Volume.
+
+Assuming that you want to keep the Volume name, but you simply want to write new data on the Volume,
+ the steps to take are:
+
+-  Use the :bcommand:`update volume` command in the Console to ensure that **Recycle = yes**.
+
+-  Use the :bcommand:`purge jobs volume` command in the Console to mark the Volume as ``Purged``.
+
+-  Check by using :bcommand:`list volumes`.
+
+Once the Volume is marked ``Purged``, it will be recycled the next time a Volume is needed.
+
+If you wish to reuse the Volume by giving it a new name, use the :bcommand:`relabel` instead
+of the :bcommand:`purge` command.
+
+
+
+.. warning::
+
+   The :bcommand:`delete` command can be dangerous. Once it is done, to recover the File records,
+   you must either restore your database as it was before the :bcommand:`delete` command or use
+   the :ref:`nqrustbackup_scan` utility program to scan the Volume and recreate the database entries.
+
+
+.. _addingvolumestopool:
+
+Adding Volumes to a Pool
+------------------------
+
+.. index::
+   single: Console; Adding a Volume to a Pool
+
+.. TODO: has been moved from NQRustBackupConsole to here
+
+If you have used the :bcommand:`label` command to label a Volume, it will be automatically added to
+the Pool, and you will not need to add any media to the pool.
+
+Alternatively, you may choose to add a number of Volumes to the pool without labeling them. At a
+later time when the Volume is requested by NQRustBackup you will need to label it.
+
+Before adding a volume, you must know the following information:
+
+#. The name of the Pool (normally "Default")
+
+#. The Media Type as specified in the Storage Resource in the Director’s configuration file (e.g. "File")
+
+#. The number and names of the Volumes you wish to create.
+
+For example, to add media to a Pool, you would issue the following commands to the console program:
+
+
+
+.. code-block:: nqrustbackup_console
+
+   *<input>add</input>
+   Enter name of Pool to add Volumes to: Default
+   Enter the Media Type: File
+   Enter number of Media volumes to create. Max=1000: 10
+   Enter base volume name: Save
+   Enter the starting number: 1
+   10 Volumes created in pool Default
+   *
+
+
+
+To see what you have added, enter:
+
+
+
+.. code-block:: nqrustbackup_console
+
+   *<input>list media pool=Default</input>
+   +-------+----------+---------+-----------+-------+------------------+
+   | MedId | VolumeNa | MediaTyp| VolStat   | Bytes | LastWritten      |
+   +-------+----------+---------+-----------+-------+------------------+
+   |    11 | Save0001 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    12 | Save0002 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    13 | Save0003 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    14 | Save0004 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    15 | Save0005 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    16 | Save0006 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    17 | Save0007 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    18 | Save0008 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    19 | Save0009 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   |    20 | Save0010 | File    | Unlabeled |     0 | 0000-00-00 00:00 |
+   +-------+----------+---------+-----------+-------+------------------+
+   *
+
+Notice that the console program automatically appended a number to the base Volume name that you
+specify (Save in this case). If you don’t want it to append a number, you can simply answer 0 (zero)
+to the question "Enter number of Media volumes to create. Max=1000:", and in this case, it will
+create a single Volume with the exact name you specify.

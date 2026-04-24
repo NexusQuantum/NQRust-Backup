@@ -1,0 +1,115 @@
+#!/bin/sh
+
+set -e
+
+. /usr/share/debconf/confmodule
+
+#set -x
+#echo "nqrustbackup-database-common.config: $@" >&2
+
+nqrustbackup_db_set_default()
+{
+  key="$1"
+  value="$2"
+
+  if db_fget "$key" seen; then
+    if [ "$RET" = "false" ]; then
+      db_set "$key" "$value"
+    fi
+  fi
+}
+
+nqrustbackup_db_compare()
+{
+  key="$1"
+  value="$2"
+
+  db_get "$key" || return $?
+  if [ "$RET" = "$value" ]; then
+    return 0
+  fi
+  return 1
+}
+
+if [ -r @scriptdir@/nqrustbackup-config-lib.sh ]; then
+  . @scriptdir@/nqrustbackup-config-lib.sh
+  if [ -f /usr/share/dbconfig-common/dpkg/config ]; then
+    . /usr/share/dbconfig-common/dpkg/config
+    # prevent errors by using || true
+    dbc_dbname=@db_name@ || true
+    dbc_dbuser=@db_user@ || true
+    dbc_dbtypes="pgsql"
+    # This setting indicates, that we want to use ident as authmethod.
+    # However, at least in dbconfig-common-2.0.25 this hint does not get applied.
+    # Therefore we later on use nqrustbackup_db_set_default to modify this default.
+    dbc_authmethod_user="ident"
+    # action
+    if [ $# -gt 0 ]; then
+      param1="$1"
+      shift
+    fi
+    # $2: when action is "configure": most-recently-configured-version
+    if [ $# -gt 0 ]; then
+      param2="$1"
+      param2_orig=$param2
+      shift
+    fi
+
+    case "$param1" in
+      configure | reconfigure)
+        if [ "$param2" ]; then
+          # When upgrading from an older version (param2),
+          # do not pass the version number of the old package.
+          # Instead we pass the database version number of the old package.
+          param2=$(get_database_version_by_release "$param2")
+
+          # dbconfig is available since NQRustBackup version >= 14.1.0.
+          if dpkg --compare-versions "$param2_orig" lt "14.1.0"; then
+            nqrustbackup_migrate_to_dbconfig="yes"
+            dbc_first_version="2003"
+            dbc_load_include="sh:/usr/lib/nqrustbackup/scripts/set_dbconfig_vars.sh"
+            # empty passwords require special treatment, see below
+            nqrustbackup_database_password=$(get_database_password) || true
+            # if password is given, set authmethod to password,
+            # otherwise postgresql configuration will stay at default "ident" method.
+            if [ "${nqrustbackup_database_password}" ]; then
+              dbc_authmethod_user="password"
+            fi
+          fi
+        fi
+        ;;
+      *) ;;
+    esac
+
+    dbc_go nqrustbackup-database-common "$param1" "$param2" "$@"
+
+    case "$param1" in
+      configure | reconfigure)
+        if [ "$param2" ]; then
+          if [ "$nqrustbackup_migrate_to_dbconfig" = "yes" ]; then
+            if [ -z "${nqrustbackup_database_password}" ]; then
+              # workaround: if an empty database password is defined, explicitly set it
+              db_set nqrustbackup-database-common/pgsql/app-pass ""
+            fi
+          fi
+        else
+          # param2 is not set, so initial installation.
+          # Define our preferences, that differ from dbconfig-common defaults:
+          nqrustbackup_db_set_default "nqrustbackup-database-common/pgsql/method" "Unix socket"
+          if nqrustbackup_db_compare "nqrustbackup-database-common/pgsql/method" "Unix socket"; then
+            # when using "Unix socket", use "ident" by default.
+            nqrustbackup_db_set_default "nqrustbackup-database-common/pgsql/authmethod-user" "ident"
+          fi
+        fi
+        # Per default, don't use dbconfig internal backup mechanism.
+        # NQRustBackup is doing a catalog backup itself.
+        # Also the NQRustBackup database can get very large,
+        # so that a dump may not fit
+        # on the default backup path (/var/cache/dbconfig-common/backups/).
+        nqrustbackup_db_set_default "nqrustbackup-database-common/upgrade-backup" "false"
+        ;;
+      *) ;;
+    esac
+
+  fi
+fi

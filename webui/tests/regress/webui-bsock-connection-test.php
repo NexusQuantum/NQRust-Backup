@@ -1,0 +1,72 @@
+<?php
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2025 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace NQRustBackup\BSock;
+
+require_once 'init_autoloader.php';
+
+require_once 'vendor/NQRustBackup/library/NQRustBackup/BSock/NQRustBackupBase64.php';
+require_once 'vendor/NQRustBackup/library/NQRustBackup/BSock/NQRustBackupBSockInterface.php';
+require_once 'vendor/NQRustBackup/library/NQRustBackup/BSock/NQRustBackupBSock.php';
+
+use Laminas\ServiceManager\FactoryInterface;
+use Laminas\ServiceManager\ServiceLocatorInterface;
+
+$config = array(
+      'debug' => false,
+      'host' => 'localhost',
+      'port' => 8101,
+      'password' => 'admin',
+      'console_name' => 'admin',
+      'pam_password' => null,
+      'pam_username' => null,
+      'tls_verify_peer' => false,
+      'server_can_do_tls' => false,
+      'server_requires_tls' => false,
+      'client_can_do_tls' => false,
+      'client_requires_tls' => false,
+      'ca_file' => null,
+      'cert_file' => null,
+      'cert_file_passphrase' => null,
+      'allowed_cns' => null,
+      'catalog' => null,
+);
+
+$bsock = new NQRustBackupBSock();
+
+foreach ($config as $key => $value) {
+    $bsock->set_config_param($key, $value);
+}
+
+if ($argv[1] === 1) {
+    var_dump($bsock);
+}
+
+$result = $bsock->connect_and_authenticate();
+
+if ($result) {
+    exit(0);
+} else {
+    exit(1);
+}

@@ -1,0 +1,13 @@
+Job {
+  Name = "backup-nqrustbackup-fd"
+  JobDefs = "DefaultJob"
+  Client = "nqrustbackup-fd"
+  Accurate = yes
+}
+
+Job {
+  Name = "backupotherclient"
+  JobDefs = "DefaultJob"
+  Client = "anotherclient"
+  Accurate = yes
+}

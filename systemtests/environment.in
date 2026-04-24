@@ -1,0 +1,179 @@
+#!/bin/bash
+
+CMAKE_SOURCE_DIR=@CMAKE_SOURCE_DIR@
+CMAKE_BINARY_DIR=@CMAKE_BINARY_DIR@
+PROJECT_SOURCE_DIR=@PROJECT_SOURCE_DIR@
+PROJECT_BINARY_DIR=@PROJECT_BINARY_DIR@
+bin=@bin@
+sbin=@sbin@
+
+# set to 1 if correct OS, or set to empty
+export HAVE_WIN32=@HAVE_WIN32@
+export HAVE_FREEBSD_OS=@HAVE_FREEBSD_OS@
+export HAVE_LINUX_OS=@HAVE_LINUX_OS@
+export HAVE_DARWIN_OS=@HAVE_DARWIN_OS@
+export HAVE_SUN_OS=@HAVE_SUN_OS@
+export HAVE_AIX_OS=@HAVE_AIX_OS@
+
+NQRUSTBACKUP_UNITTESTS_BINARY_DIR=$CMAKE_BINARY_DIR/core/src/tests
+
+current_test_directory=${PROJECT_BINARY_DIR}/tests/@TEST_NAME@
+
+export config_directory_dir_additional_test_config=@config_directory_dir_additional_test_config@
+
+working=${current_test_directory}/working
+working_dir=${working}
+messagesfile=${working_dir}/nqrustbackup-dir.conmsg
+tmp=${current_test_directory}/tmp
+export BackupDirectory="${tmp}/data"
+export RestoreDirectory="${tmp}/nqrustbackup-restores"
+systemtests_s3_use_https=@systemtests_s3_use_https@
+
+export NULL_DEV=@OS_NULL_DEVICE@
+
+dumps=${current_test_directory}/dumps
+cats=${PROJECT_BINARY_DIR}/cats
+src=${PROJECT_BINARY_DIR}/src
+tmpsrc=${PROJECT_BINARY_DIR}/tmpsrc
+
+DBTYPE=${DBTYPE:-postgresql}
+
+archivedir=@archivedir@
+logdir=@logdir@
+
+export backenddir="@backenddir@"
+export sd_backenddir="@sd_backenddir@"
+
+export dir_password="@dir_password@"
+export sd_password="@sd_password@"
+export fd_password="@fd_password@"
+
+# exported variables used by start/stop and other nqrustbackup scripts
+# to override the defaults
+export NQRUSTBACKUP_CONFIG_DIR=${current_test_directory}/etc/nqrustbackup
+export NQRUSTBACKUP_LOG_DIR=${logdir}
+export NQRUSTBACKUP_SCRIPTS_DIR=@scriptdir@
+export NQRUSTBACKUP_SBIN_DIR=${sbin}
+export NQRUSTBACKUP_WORKING_DIR=${working}
+export BASEPORT=@BASEPORT@
+export NQRUSTBACKUP_DIRECTOR_PORT=@dir_port@
+export NQRUSTBACKUP_FD_PORT=@fd_port@
+export NQRUSTBACKUP_STORAGE_PORT=@sd_port@
+export NQRUSTBACKUP_STORAGE2_PORT=@sd2_port@
+export NQRUSTBACKUP_WEBUI_PORT=@php_port@
+export MINIO_PORT=@minio_port@
+
+export CMAKE_BINARY_DIR
+
+export NQRUSTBACKUP_DIRECTOR_BINARY="@NQRUSTBACKUP_DIR_BINARY@"
+export NQRUSTBACKUP_FILEDAEMON_BINARY="@NQRUSTBACKUP_FD_BINARY@"
+export NQRUSTBACKUP_STORAGEDAEMON_BINARY="@NQRUSTBACKUP_SD_BINARY@"
+
+# normally NQRUSTBACKUP_CTL_FD_RUNNER in unset.
+# In some cases, executing nqrustbackup-ctl-fd via sudo is required.
+# Then we required value is assigned via environment.local.
+export NQRUSTBACKUP_CTL_FD_RUNNER=
+
+export NQRUSTBACKUP_NQRUSTBACKUP_SCAN_BINARY="@NQRUSTBACKUP_SCAN_BINARY@"
+export NQRUSTBACKUP_BLS_BINARY="@BLS_BINARY@"
+export NQRUSTBACKUP_NQRUSTBACKUP_CONSOLE_BINARY="@NQRUSTBACKUP_CONSOLE_UNSAFE_BINARY@"
+export NQRUSTBACKUP_NQRUSTBACKUP_EXTRACT_BINARY="@NQRUSTBACKUP_EXTRACT_BINARY@"
+export NQRUSTBACKUP_NQRUSTBACKUP_TAPE_BINARY="@NQRUSTBACKUP_TAPE_BINARY@"
+export NQRUSTBACKUP_DBCHECK_BINARY="@NQRUSTBACKUP_DBCHECK_BINARY@"
+export NQRUSTBACKUP_NQRUSTBACKUP_COPY_BINARY="@NQRUSTBACKUP_COPY_BINARY@"
+export NQRUSTBACKUP_NQRUSTBACKUP_DEDUPESTIMATE_BINARY="@NQRUSTBACKUP_DEDUPESTIMATE_BINARY@"
+export NQRUSTBACKUP_GENTESTDATA_BINARY="@GENTESTDATA_BINARY@"
+export NQRUSTBACKUP_TRAY_MONITOR_BINARY="@NQRUSTBACKUP_TRAY_MONITOR_BINARY@"
+export NQRUSTBACKUP_RANDOM_COMMANDS_BINARY="@RANDOM_COMMANDS_BINARY@"
+
+export archivedir
+
+export DBTYPE
+export tmp
+
+# DB parameters
+export db_name=@db_name@
+export db_user=@db_user@
+export db_password=@db_password@
+
+# TLS_VERSION = v1.2 is a workaround,
+# By default, sslpsk should negotiate the highest
+# TLS protocol version.
+# This fails with the current version (1.0.0) of sslpsk.
+export PYTHON_NQRUSTBACKUP_TLS_VERSION="v1.2"
+
+export PAM_WRAPPER_LIBRARIES=@PAM_WRAPPER_LIBRARIES@
+
+#
+# Selenium test
+#
+export NQRUSTBACKUP_WEBUI_TESTNAME=@NQRUSTBACKUP_WEBUI_TESTNAME@
+export NQRUSTBACKUP_WEBUI_PROFILE=@NQRUSTBACKUP_WEBUI_PROFILE@
+export NQRUSTBACKUP_WEBUI_CONFDIR=@WEBUICONFDIR@
+export NQRUSTBACKUP_WEBUI_BROWSER=chrome
+export NQRUSTBACKUP_WEBUI_CHROMEDRIVER_PATH=@CHROMEDRIVER@
+export NQRUSTBACKUP_WEBUI_BASE_URL=http://localhost:@php_port@/
+export NQRUSTBACKUP_WEBUI_USERNAME=@NQRUSTBACKUP_WEBUI_PROFILE@
+export NQRUSTBACKUP_WEBUI_PASSWORD=@NQRUSTBACKUP_WEBUI_PROFILE@
+export NQRUSTBACKUP_WEBUI_CLIENT_NAME=nqrustbackup-fd
+export NQRUSTBACKUP_WEBUI_RESTOREFILE=${PROJECT_BINARY_DIR}
+export NQRUSTBACKUP_WEBUI_LOG_PATH=${logdir}
+export NQRUSTBACKUP_WEBUI_DELAY=1
+export NQRUSTBACKUP_WEBUI_PUBLIC_DIR=@NQRUSTBACKUP_WEBUI_PUBLIC_DIR@
+
+export PHP_EXECUTABLE="@PHP@"
+export PYTHON_EXECUTABLE="@PYTHON_EXECUTABLE@"
+
+if [[ "${HAVE_WIN32}" = "1" ]]; then
+  # On Windows the symlinked programs need to find their DLLs.
+  PATH="@CYGWIN_RUNTIME_OUTPUT_DIRECTORY@:$PATH"
+fi
+
+export PYTHONPATH=@pythonpath@
+
+gfapi_fd_host=@gfapi_fd_host@
+gfapi_fd_testvolume=@gfapi_fd_testvolume@
+
+dbHost="@dbHost@"
+test_db_port=@test_db_port@
+# enable deprecated database handling in scripts
+export NQRUSTBACKUP_TEST_RUNNING=yes
+
+MINIO=@MINIO@
+S3CMD="@S3CMD@"
+S3CFG="${current_test_directory}/etc/s3cfg"
+
+SYSTEMTEST_LDAP_ADDRESS="@SYSTEMTEST_LDAP_ADDRESS@"
+SYSTEMTEST_LDAP_BASEDN="@SYSTEMTEST_LDAP_BASEDN@"
+SYSTEMTEST_LDAP_BINDDN="@SYSTEMTEST_LDAP_BINDDN@"
+SYSTEMTEST_LDAP_PASSWORD="@SYSTEMTEST_LDAP_PASSWORD@"
+
+# we need to ensure that an utf-8 locale is used
+# C.UTF-8 should hopefully always be available
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+
+# path to real postgres binaries, NOT debian wrappers
+POSTGRES_BIN_PATH="@POSTGRES_BIN_PATH@"
+
+XTRABACKUP_BINARY=@XTRABACKUP_BINARY@
+MYSQL_DAEMON_BINARY=@MYSQL_DAEMON_BINARY@
+MYSQL_CLIENT_BINARY=@MYSQL_CLIENT_BINARY@
+MYSQL_INSTALL_DB_SCRIPT=@MYSQL_INSTALL_DB_SCRIPT@
+
+MARIADB_BACKUP_BINARY=@MARIADB_BACKUP_BINARY@
+MARIADB_DAEMON_BINARY=@MARIADB_DAEMON_BINARY@
+MARIADB_CLIENT_BINARY=@MARIADB_CLIENT_BINARY@
+MARIADB_INSTALL_DB_SCRIPT=@MARIADB_INSTALL_DB_SCRIPT@
+
+SUDO=@SUDO@
+IP_ADDRESS_TO_ACCESS_NDMP_DATA_AGENT=@IP_ADDRESS_TO_ACCESS_NDMP_DATA_AGENT@
+NDMP_DATA_AGENT_ADDRESS=@ndmp_data_agent_address@
+
+export IGNORE_CONFIG_WARNINGS=@IGNORE_CONFIG_WARNINGS@
+export SQLCMD="@SQLCMD@"
+export PERL="@PERL@"
+
+if [ -f environment.local ]; then
+  source environment.local
+fi

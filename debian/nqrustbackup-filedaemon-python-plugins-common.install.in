@@ -1,0 +1,5 @@
+@plugindir@/nqrustbackup-fd-local-fileset.py*
+@plugindir@/NQRustBackupFdPluginBaseclass.py*
+@plugindir@/NQRustBackupFdPluginLocalFilesBaseclass.py*
+@plugindir@/NQRustBackupFdWrapper.py*
+@scriptdir@/nqrustbackup_encode_string.py

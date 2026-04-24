@@ -1,0 +1,17 @@
+@libdir@/libnqrustbackup.so*
+@libdir@/libnqrustbackupfastlz.so*
+@libdir@/libnqrustbackupfind.so*
+@libdir@/libnqrustbackuplmdb.so*
+@libdir@/libnqrustbackupndmp.so*
+@libdir@/libnqrustbackupsd.so*
+@plugindir@/autoxflate-sd.so
+@backenddir@/libnqrustbackupsd-file.so*
+@scriptdir@/nqrustbackup-config
+@scriptdir@/nqrustbackup-config-lib.sh
+@scriptdir@/btraceback.gdb
+/usr/bin/nqrustbackup_smtp
+/usr/sbin/nqrustbackup_smtp
+/usr/sbin/btraceback
+/usr/share/man/man1/nqrustbackup_smtp.1*
+/usr/share/man/man8/btraceback.8*
+/var/lib/nqrustbackup/

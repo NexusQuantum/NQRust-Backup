@@ -1,0 +1,20 @@
+[nqrustbackup-director]
+description[de]=Dienst zum Steuern von Backups
+description[en]=Service for coordinating backups
+icon=service/nqrustbackup-dir
+programs=/usr/sbin/nqrustbackup-dir
+start_type=nqrustbackup/dir/autostart
+
+[nqrustbackup-sd]
+description[de]=Dienst für den Zugriff auf Sicherungsmedien
+description[en]=Service for accessing backup media
+icon=service/nqrustbackup-sd
+programs=/usr/sbin/nqrustbackup-sd
+start_type=nqrustbackup/sd/autostart
+
+[nqrustbackup-fd]
+description[de]=Dienst für den Zugriff auf zu sichernde Systeme
+description[en]=Service for accessing systems for backup
+icon=service/nqrustbackup-fd
+programs=/usr/sbin/nqrustbackup-fd
+start_type=nqrustbackup/fd/autostart

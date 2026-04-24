@@ -1,0 +1,9 @@
+FileSet {
+  Name = "include-server"
+  Include {
+    Options {
+      Signature = XXH128
+    }
+    File = "<@confdir@/include-server"
+  }
+}

@@ -1,0 +1,17 @@
+/usr/sbin/nqrustbackup-fd
+/usr/sbin/btraceback
+/usr/share/man/man8/nqrustbackup-fd.8*
+/usr/share/man/man8/btraceback.8*
+/var/lib/nqrustbackup/
+@configtemplatedir@/nqrustbackup-fd.d/client/myself.conf
+@configtemplatedir@/nqrustbackup-fd.d/director/nqrustbackup-dir.conf
+@configtemplatedir@/nqrustbackup-fd.d/director/nqrustbackup-mon.conf
+@configtemplatedir@/nqrustbackup-fd.d/messages/Standard.conf
+@libdir@/libnqrustbackup.so*
+@libdir@/libnqrustbackupfastlz.so*
+@libdir@/libnqrustbackupfind.so*
+@libdir@/libnqrustbackuplmdb.so*
+@plugindir@/bpipe-fd.so
+@scriptdir@/nqrustbackup-config
+@scriptdir@/nqrustbackup-config-lib.sh
+@scriptdir@/btraceback.gdb

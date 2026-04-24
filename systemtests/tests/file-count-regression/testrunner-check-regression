@@ -1,0 +1,79 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# Run a simple backup
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+JobName=backup-nqrustbackup-fd
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+#shellcheck source=functions
+. functions
+
+start_test
+
+cat <<END_OF_DATA >"$tmp/make-full"
+@$out ${NULL_DEV}
+messages
+@$out ${runner_tmp}/create-full.out
+setdebug level=100 storage=File
+run job=$JobName yes
+wait
+status director
+status client
+status storage=File
+messages
+quit
+END_OF_DATA
+
+cat <<END_OF_DATA >"$tmp/make-incr"
+@$out ${NULL_DEV}
+messages
+@$out ${runner_tmp}/create-incremental.out
+run job=$JobName yes
+wait
+status director
+status client
+status storage=File
+messages
+quit
+END_OF_DATA
+
+cat <<END_OF_DATA >"$tmp/restore"
+@$out ${NULL_DEV}
+messages
+@$out ${runner_tmp}/restore.out
+restore client=nqrustbackup-fd fileset=SelfTest where=$tmp/nqrustbackup-restore select yes
+cd $tmp
+markdir data
+mark data/file-1
+done
+wait
+status director
+status client
+status storage=File
+messages
+quit
+END_OF_DATA
+
+truncate -s 5k "${BackupDirectory}"/file-1
+run_nqrustbackup_console "$tmp/make-full"
+truncate -s 5k "${BackupDirectory}"/file-2
+truncate -s 5k "${BackupDirectory}"/file-3
+run_nqrustbackup_console "$tmp/make-incr"
+run_nqrustbackup_console "$tmp/restore"
+
+check_for_zombie_jobs storage=File
+
+expect_not_grep "File count mismatch" \
+  "${runner_tmp}/restore.out" \
+  "Regression detected: file count mismatch"
+end_test

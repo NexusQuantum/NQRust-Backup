@@ -1,0 +1,13 @@
+FileSet {
+  Name = "nqrustbackup_tasks_pgsql"
+  Description = "Test the Plugin functionality with a Python Plugin."
+  Include {
+    Options {
+      signature = XXH128
+    }
+    Plugin = "@dir_python_module_name@"
+             ":module_name=nqrustbackup_tasks.pgsql"
+             ":pg_host=@dbHost@"
+             ":pg_user=''"
+  }
+}

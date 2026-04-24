@@ -1,0 +1,81 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+#
+# This test tests the nqrustbackup_console against the nqrustbackup-dir using PAM authentication.
+#
+# Requires:
+# on Debian following packages must be installed:
+#   libpam-modules (for pam_exec.so),
+#   libpam-wrapper,
+#   pamtester
+# On Fedora, the names are similar: pam, pam-wrapper, pamtester.
+#
+# If they are not available, the test will be disabled by cmake.
+#
+# PAM is configured to accept all users where USERNAME = PASSWORD.
+#
+# Interactive PAM login in nqrustbackup_console does not work,
+# as the configured PAM module does not ask for the username.
+# However, providing the PAM credentials to nqrustbackup_console as file (nqrustbackup_console -p CREDENTIALS_FILE) does work.
+#
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+TestName="$(basename "$(pwd)")"
+export TestName
+
+start_test
+
+export PAM_WRAPPER=1
+export PAM_WRAPPER_SERVICE_DIR=${current_test_directory}/etc/pam.d/nqrustbackup
+# PAM_WRAPPER creates extra environments in /tmp/pam.*/
+# However, these are removed when nqrustbackup-dir daemonized.
+# This settings keeps them all.
+# Other workaround: don't let nqrustbackup-dir daemonize itself,
+# but use foreground and ampersand (-f and &)
+#export PAM_WRAPPER_KEEP_DIR=1
+
+# PAM_WRAPPER_LIBRARIES has to set be cmake
+
+# check if we linked to libasan, if so we'll need to preload that library first
+libasan="$(ldd "${NQRUSTBACKUP_DIRECTOR_BINARY}" | awk '/libasan.so/ { print $3 }')"
+
+preload_libs="${PAM_WRAPPER_LIBRARIES}"
+if [ -n "$libasan" ]; then
+  preload_libs="${libasan}:${preload_libs}"
+fi
+
+output=/dev/null
+if is_debug; then
+  export PAM_WRAPPER_DEBUGLEVEL=4
+  output=/dev/stdout
+  LD_PRELOAD="${preload_libs}" "${NQRUSTBACKUP_DIRECTOR_BINARY}" -c "${NQRUSTBACKUP_CONFIG_DIR}" -f -d 200 >$output 2>&1 &
+else
+  LD_PRELOAD="${preload_libs}" "${NQRUSTBACKUP_DIRECTOR_BINARY}" -c "${NQRUSTBACKUP_CONFIG_DIR}" -f >$output 2>&1 &
+fi
+
+# make sure that the director is up and running.
+print_debug "$(bin/nqrustbackup_console <<<"status dir")"
+
+#
+# run Python Unit Tests
+#
+run_python_unittests "pamlogintest"
+
+if ! ${NQRUSTBACKUP_SCRIPTS_DIR}/nqrustbackup-ctl-dir status >/dev/null; then
+  set_error "Director does not run anymore. This should not happen."
+  exit 1
+fi
+
+stop_nqrustbackup >$output 2>&1
+
+end_test

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#
+# script to start and stop the webui manually
+#
+
+set -e
+set -o pipefail
+set -u
+
+#shellcheck source=../../environment.in
+. ./environment
+
+case "${1-}" in
+  start)
+    ${NQRUSTBACKUP_SCRIPTS_DIR}/webui.sh >"$tmp/webui-php.out" 2>&1 &
+    echo $! >php_pidfile
+    echo "opening webui via xdg-open ..."
+    xdg-open "http://127.0.0.1:${NQRUSTBACKUP_WEBUI_PORT}"
+    ;;
+  stop)
+    PHP_PID=$(cat php_pidfile)
+    echo "stopping php process $PHP_PID"
+    kill "${PHP_PID}"
+    rm -f php_pidfile
+    ;;
+  *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,19 @@
+Package: univention-nqrustbackup
+Architecture: all
+# univention-postgresql is required to be configured before nqrustbackup-database-common (nqrustbackup-database-postgresql)
+Pre-Depends: univention-postgresql
+Depends: nqrustbackup (= ${binary:Version}),
+ nqrustbackup-database-postgresql,
+ nqrustbackup-webui,
+ univention-config,
+ univention-join (>> 5.0.20-1.436),
+ univention-postgresql,
+ shell-univention-lib (>> 2.0.17-1.125)
+# Older versions do require the package univention-nqrustbackup-schema,
+# which does no longer exist.
+Provides:  univention-nqrustbackup-schema
+Replaces:  univention-nqrustbackup-schema
+Description: Backup Archiving Recovery Open Sourced - UCS integration
+ This package integrates the NQRustBackup backup solution into
+ UCS. The package provides automatic configuration of the
+ NQRustBackup director, local file daemon and storage daemon.

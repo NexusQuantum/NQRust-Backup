@@ -1,0 +1,12 @@
+nqrustbackup.com-nqrustbackup_console
+nqrustbackup.com-common
+nqrustbackup.com-database-common
+nqrustbackup.com-database-postgresql
+nqrustbackup.com-database-tools
+nqrustbackup.com-director
+nqrustbackup.com-filedaemon
+nqrustbackup.com-filedaemon-python-plugin
+nqrustbackup.com-storage
+nqrustbackup.com-storage-dedup
+nqrustbackup.com-storage-tape
+nqrustbackup.com-tools

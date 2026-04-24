@@ -1,0 +1,150 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2025 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace Fileset\Controller;
+
+use Laminas\Mvc\Controller\AbstractActionController;
+use Laminas\View\Model\ViewModel;
+use Exception;
+
+class FilesetController extends AbstractActionController
+{
+    /**
+     * Variables
+     */
+    protected $filesetModel = null;
+    protected $bsock = null;
+    protected $acl_alert = false;
+
+    /**
+     * Index Action
+     *
+     * @return object
+     */
+    public function indexAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Fileset']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        return new ViewModel();
+    }
+
+    /**
+     * Details Action
+     *
+     * @return object
+     */
+    public function detailsAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Fileset']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        $filesetid = $this->params()->fromRoute('id', 0);
+
+        try {
+            $this->bsock = $this->getServiceLocator()->get('director');
+            $fileset = $this->getFilesetModel()->getFileset($this->bsock, $filesetid);
+            $this->bsock->disconnect();
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        return new ViewModel(
+            array(
+                'fileset' => $fileset
+            )
+        );
+    }
+
+    /**
+     * Get Fileset Model
+     *
+     * @return object
+     */
+    public function getFilesetModel()
+    {
+        if (!$this->filesetModel) {
+            $sm = $this->getServiceLocator();
+            $this->filesetModel = $sm->get('Fileset\Model\FilesetModel');
+        }
+        return $this->filesetModel;
+    }
+}

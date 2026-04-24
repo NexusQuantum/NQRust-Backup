@@ -1,0 +1,472 @@
+#
+#   NQRUSTBACKUP - Backup Archiving REcovery Open Sourced
+#
+#   Copyright (C) 2019-2026 NQRustBackup GmbH & Co. KG
+#
+#   This program is Free Software; you can redistribute it and/or
+#   modify it under the terms of version three of the GNU Affero General Public
+#   License as published by the Free Software Foundation and included
+#   in the file LICENSE.
+#
+#   This program is distributed in the hope that it will be useful, but
+#   WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+#   Affero General Public License for more details.
+#
+#   You should have received a copy of the GNU Affero General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+#   02110-1301, USA.
+
+# -*- coding: utf-8 -*-
+
+import json
+import logging
+import os
+import re
+import subprocess
+from time import sleep
+import unittest
+import warnings
+
+import nqrustbackup.bsock
+from nqrustbackup.bsock.constants import Constants
+from nqrustbackup.bsock.protocolmessages import ProtocolMessages
+from nqrustbackup.bsock.protocolversions import ProtocolVersions
+from nqrustbackup.bsock.lowlevel import LowLevel
+import nqrustbackup.exceptions
+
+import nqrustbackup_unittest
+
+
+class PythonNQRustBackupAclTest(nqrustbackup_unittest.Json):
+    def test_restore_with_client_acl(self):
+        """
+        Check if the restore command honors the client ACL.
+        Login as console with access only to client = nqrustbackup-fd.
+        Verify, that a restore can only be performed from this client.
+
+        It checks the interactive restore command,
+        therefore it can not use the Json console.
+        """
+        logger = logging.getLogger()
+
+        username = self.get_operator_username()
+        password = self.get_operator_password(username)
+
+        console_nqrustbackup_fd_username = "client-nqrustbackup-fd"
+        console_nqrustbackup_fd_password = "secret"
+
+        director_root = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        jobIdNQRustBackupFdFull = self.get_backup_jobid(
+            director_root, "backup-nqrustbackup-fd", level="Full"
+        )
+        jobIdTestFdFull = self.get_backup_jobid(
+            director_root, "backup-test2-fd", level="Full"
+        )
+
+        #
+        # login as console with ACLs
+        #
+        nqrustbackup_password = nqrustbackup.bsock.Password(console_nqrustbackup_fd_password)
+        console_nqrustbackup_fd = nqrustbackup.bsock.DirectorConsole(
+            address=self.director_address,
+            port=self.director_port,
+            name=console_nqrustbackup_fd_username,
+            password=nqrustbackup_password,
+            **self.director_extra_options
+        )
+
+        result = console_nqrustbackup_fd.call("restore")
+        logger.debug(str(result))
+
+        #
+        # restore: 1: List last 20 Jobs run
+        #
+        # This requires access to the "sqlquery" command,
+        # which this console does not have.
+        #
+        result = console_nqrustbackup_fd.call("1")
+        logger.debug(str(result))
+        self.assertEqual(b"SQL query not authorized.", result.strip())
+
+        result = console_nqrustbackup_fd.call("restore")
+
+        #
+        # restore: 2: List Jobs where a given File is saved
+        #
+        # Only the nqrustbackup-fd client should be accessable
+        # and is therefore autoselected.
+        #
+        result = console_nqrustbackup_fd.call("2")
+        logger.debug(str(result))
+        self.assertIn(b"Automatically selected Client: nqrustbackup-fd", result)
+        result = console_nqrustbackup_fd.call("Makefile")
+        logger.debug(str(result))
+        self.assertIn(b"/Makefile ", result)
+        # result = console_nqrustbackup_fd.call('.')
+
+        #
+        # restore: 3: Enter list of comma separated JobIds to select
+        #
+        # We select a job that did run on a client
+        # we don't have access to.
+        # Therefore we expect that we are not allowed to access this jobid.
+        # However, we got access.
+        # TODO: This has to be fixed in the NQRustBackup Director.
+        #
+        result = console_nqrustbackup_fd.call("3")
+        logger.debug(str(result))
+        result = console_nqrustbackup_fd.call(jobIdTestFdFull)
+        logger.debug(str(result))
+        # TODO: This is a bug.
+        #       ACL checking does not work here,
+        #       because this jobid should be accessible in this console.
+        # self.assertIn(b'No Job found for JobId', result)
+        result = console_nqrustbackup_fd.call("find *")
+        logger.debug(str(result))
+        self.assertIn(b"/Makefile", result)
+        result = console_nqrustbackup_fd.call("done")
+
+        result = console_nqrustbackup_fd.call("restore")
+
+        #
+        # 4: Enter SQL list command
+        #
+        # This requires access to the "sqlquery" command,
+        # which this console does not have.
+        #
+        result = console_nqrustbackup_fd.call("4")
+        logger.debug(str(result))
+        self.assertEqual(b"SQL query not authorized.", result.strip())
+
+        result = console_nqrustbackup_fd.call("restore")
+
+        #
+        # 5: Select the most recent backup for a client
+        #
+        # Only the nqrustbackup-fd client should be accessible
+        # and is therefore autoselected.
+        #
+        result = console_nqrustbackup_fd.call("5")
+        logger.debug(str(result))
+        self.assertIn(b"Automatically selected Client: nqrustbackup-fd", result)
+        result = console_nqrustbackup_fd.call("done")
+        logger.debug(str(result))
+        # result = console_nqrustbackup_fd.call('.')
+
+        # The remaining options are not tested,
+        # as we assume that we have covered the relevant cases.
+
+    def test_json_list_media_with_pool_acl(self):
+        """
+        This tests checks if the Pool ACL works with the "llist media all" command.
+
+        login as admin
+          run a Full job. It gets stored in pool Full
+          modify the backup directory
+          run a Incremental job. It gets stored in pool Incremental
+          verifies that at least 1 volume exists in the Full pool.
+          verifies that at least 1 volume exists in the Incremental pool.
+        login as console 'poolfull'
+          verifies that "llist media all" only shows volumes from the Full pool.
+        login as console 'poolnotfull'
+          verifies that "llist media all" only shows volumes not from the Full pool.
+        """
+        logger = logging.getLogger()
+
+        username = self.get_operator_username()
+        password = self.get_operator_password(username)
+
+        console_password = "secret"
+
+        director_root = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        jobIdFull = self.get_backup_jobid(director_root, "backup-nqrustbackup-fd", "Full")
+
+        # make sure, timestamp differs
+        sleep(2)
+
+        self.append_to_file("{}/extrafile.txt".format(self.backup_directory), "Test\n")
+
+        sleep(2)
+
+        jobIdIncr = self.run_job(
+            director_root, "backup-nqrustbackup-fd", "Incremental", wait=True
+        )
+
+        result = director_root.call("list jobs")
+        logger.debug(str(result))
+
+        self._test_job_result(result["jobs"], jobIdFull)
+        self._test_job_result(result["jobs"], jobIdIncr)
+
+        result = director_root.call("list volume pool=Full count")
+        self.assertTrue(
+            int(result["volumes"][0]["count"]) >= 1, "Full pool contains no volumes."
+        )
+
+        result = director_root.call("list volume pool=Incremental count")
+        self.assertTrue(
+            int(result["volumes"][0]["count"]) >= 1,
+            "Incremental pool contains no volumes.",
+        )
+
+        # without Pool ACL restrictions,
+        # 'list media all' returns all volumes from all pools.
+        result = director_root.call("list media all")
+        logger.debug(str(result))
+        self.assertGreaterEqual(len(result["volumes"]), 2)
+
+        #
+        # login as console 'poolfull'
+        #
+        nqrustbackup_password = nqrustbackup.bsock.Password(console_password)
+        console_poolfull = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name="poolfull",
+            password=nqrustbackup_password,
+            **self.director_extra_options
+        )
+
+        # 'list media all' returns an error,
+        # as the current user has limited Pool ACL permissions.
+        # This behavior describes the current behavior.
+        # Improvements on the server side welcome.
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            result = console_poolfull.call("list media all")
+
+        result = console_poolfull.call("llist media all")
+        logger.debug(str(result))
+
+        self.assertGreaterEqual(len(result["volumes"]), 1)
+
+        for volume in result["volumes"]:
+            self.assertEqual(volume["pool"], "Full")
+
+        #
+        # login as console 'poolnotfull'
+        #
+        self._test_no_volume_in_pool("poolnotfull", console_password, "Full")
+
+        #
+        # use profile without Pool restrictions
+        # and overwrite the Pool ACL in the console.
+        #
+        console_overwrite = "overwritepoolacl"
+        self.configure_add(
+            director_root,
+            "consoles",
+            console_overwrite,
+            "console={} password={} profile=operator poolacl=!Full tlsenable=no tlsrequire=no".format(
+                console_overwrite, console_password
+            ),
+        )
+
+        # This console should not see volumes in the Full pool.
+        self._test_no_volume_in_pool(console_overwrite, console_password, "Full")
+
+    def test_json_list_jobid_with_job_acl(self):
+        """
+        This tests checks if the Job ACL works with the "list jobs" and "list jobid=<>" commands.
+
+        login as operator
+          run a backup-nqrustbackup-fd job.
+          create and run a backup-nqrustbackup-fd-test job.
+          verifies that both jobs are visible by the list command.
+        login as a console that can only see backup-nqrustbackup-fd jobs
+          verifies that the backup-nqrustbackup-fd is visible.
+          verifies that the backup-nqrustbackup-fd is not visible.
+        """
+        logger = logging.getLogger()
+
+        username = self.get_operator_username()
+        password = self.get_operator_password(username)
+
+        console_username = "job-backup-nqrustbackup-fd"
+        console_password = "secret"
+        jobname1 = "backup-nqrustbackup-fd"
+        jobname2 = "backup-nqrustbackup-fd-test"
+
+        director_root = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        jobid1 = self.get_backup_jobid(
+            director=director_root, jobname=jobname1, level="Full"
+        )
+
+        self.configure_add(
+            director_root,
+            "jobs",
+            jobname2,
+            "job name={} client=nqrustbackup-fd jobdefs=DefaultJob".format(jobname2),
+        )
+
+        jobid2 = self.get_backup_jobid(
+            director=director_root, jobname=jobname2, level="Full"
+        )
+
+        #
+        # both jobid should be visible
+        #
+        self._test_list_with_valid_jobid(director_root, jobid1)
+        self._test_list_with_valid_jobid(director_root, jobid2)
+
+        #
+        # login as console_username
+        #
+        nqrustbackup_password = nqrustbackup.bsock.Password(console_password)
+        director = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=console_username,
+            password=nqrustbackup_password,
+            **self.director_extra_options
+        )
+
+        #
+        # only jobid1 should be visible
+        #
+        self._test_list_with_valid_jobid(director, jobid1)
+        self._test_list_with_invalid_jobid(director, jobid2)
+
+    def _test_status_subscription(self, username, password):
+        logger = logging.getLogger()
+
+        configured_subscriptions = "10"
+
+        director_root = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        result = director_root.call("status subscription all")
+        self.assertEqual(configured_subscriptions, result["unit-summary"]["configured"])
+
+    def test_status_subscription_admin(self):
+        username = self.get_operator_username()
+        password = self.get_operator_password(username)
+        self._test_status_subscription(username, password)
+
+    def test_status_subscription_user_fails(self):
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            self._test_status_subscription("client-nqrustbackup-fd", "secret")
+
+    def test_limited_command_acl(self):
+        """
+        The console "limited-operator" uses the profile "operator",
+        but disallows the command ".consoles".
+        """
+        logger = logging.getLogger()
+
+        username = "limited-operator"
+        password = "secret"
+
+        console = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        # verify that the command ".consoles" is not allowed.
+        # We expect that the NQRustBackup Director will return something like:
+        # {
+        #   "jsonrpc": "2.0",
+        #   "id": null,
+        #   "error": {
+        #     "code": 1,
+        #     "message": "failed",
+        #     "data": {
+        #       "result": {},
+        #       "messages": {
+        #         "error": [
+        #           ".consoles: is an invalid command.\n"
+        #         ]
+        #       }
+        #     }
+        #   }
+        # }
+        # DirectorConsoleJson will raise an exception, if the result contains the "error" key.
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            result = console.call(".consoles")
+
+        # verify that substings of the ".consoles" command are not allowed.
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            result = console.call(".consol")
+
+        # verify that other commands are allowed.
+        result = console.call(".jobs")
+        self.assertGreaterEqual(len(result["jobs"]), 1)
+
+    def test_limiting_where_acl(self):
+        """
+        Try different where options on restore.
+        """
+        logger = logging.getLogger()
+
+        username = "limited-operator"
+        password = "secret"
+
+        jobname = "backup-nqrustbackup-fd"
+        client = "nqrustbackup-fd"
+        # console WhereACL is expected to be:
+        # WhereAcl = <allowed_restore_path>, "!*all*"
+        allowed_restore_path = "{}/tmp/nqrustbackup-restores-{}".format(os.getcwd(), username)
+
+        console = nqrustbackup.bsock.DirectorConsoleJson(
+            address=self.director_address,
+            port=self.director_port,
+            name=username,
+            password=password,
+            **self.director_extra_options
+        )
+
+        # retrieve or create a jobid of a valid backup job
+        backup_jobid = self.get_backup_jobid(console, jobname, level="Full")
+
+        # restore with default where path
+        restore_jobid = self.run_restore(console, client=client, jobid=backup_jobid)
+
+        # restore with allowed where path
+        restore_jobid = self.run_restore(
+            console,
+            client=client,
+            jobid=backup_jobid,
+            extra="where={}".format(allowed_restore_path),
+        )
+
+        # try to restore with non-allowed where path
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            restore_jobid = self.run_restore(
+                console, client=client, jobid=backup_jobid, extra="where=/tmp/INVALID"
+            )
+
+        # try to restore with non-allowed empty where path
+        with self.assertRaises(nqrustbackup.exceptions.JsonRpcErrorReceivedException):
+            restore_jobid = self.run_restore(
+                console, client=client, jobid=backup_jobid, extra="where="
+            )

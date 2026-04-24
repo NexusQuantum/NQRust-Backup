@@ -1,0 +1,68 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+#
+# This systemtest creates a simple backup with
+# the local-fileset plugin while using the
+# io-in-core feature of the plugin api and checks
+# that it works correctly.
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+JobName=backup-nqrustbackup-fd
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+start_test
+
+if [ -f "${working}/${TestName}"-fd.trace ]; then
+  rm "${working}/${TestName}"-fd.trace
+fi
+
+cat <<END_OF_DATA >$tmp/bconcmds
+@$out ${NULL_DEV}
+messages
+@$out ${runner_tmp}/log1.out
+@# toggle trace to make sure that nqrustbackup creates a new trace file
+setdebug level=800 client trace=0
+setdebug level=800 client trace=1
+run job=$JobName fileset=PluginTest_do_io_in_core yes
+status director
+status client
+status storage=File
+wait
+messages
+END_OF_DATA
+
+run_nqrustbackup_console "$@"
+check_for_zombie_jobs storage=File
+
+cat <<END_OF_DATA >$tmp/bconcmds
+@#
+@# now do a restore
+@#
+@$out ${runner_tmp}/log2.out
+restore client=nqrustbackup-fd fileset=PluginTest_do_io_in_core where=${runner_tmp}/nqrustbackup-restores select all done yes
+status client=nqrustbackup-fd
+wait
+messages
+END_OF_DATA
+
+run_nqrustbackup_console "$@"
+check_for_zombie_jobs storage=File
+
+check_two_logs "${runner_tmp}/log1.out" "${runner_tmp}/log2.out"
+check_restore_diff "${BackupDirectory}" "${runner_tmp}/nqrustbackup-restores"
+
+expect_grep "bread handled in core" \
+  "${working}/${TestName}"-fd.trace \
+  "io was not handled in core according to trace file."
+
+end_test

@@ -1,0 +1,818 @@
+.. _VMwarePlugin:
+
+VMware Plugin
+~~~~~~~~~~~~~
+
+.. index::
+   single: Plugin; VMware
+   single: VMware Plugin
+
+The |vmware| Plugin can be used for agentless backups of virtual machines running on |vsphere|. It makes use of CBT (Changed Block Tracking) to do space efficient full and incremental backups, see below for mandatory requirements.
+
+The plugin consists of two parts. The first part is implemented in Python, it
+uses the vSphere Web Services API to create and remove snapshots, retrieve VM
+config metadata, recreate virtual machines and to query CBT data.
+The second part is the `nqrustbackup_vadp_dumper` which is implemented in C++. This
+binary uses the Virtual Disk Development Kit (VDDK) to retrieve the virtual
+disks from the Hypervisor hosts.
+
+It is included in NQRustBackup since :sinceVersion:`15.2.0: VMware Plugin`.
+
+Status
+^^^^^^
+
+The Plugin can do full, differential and incremental backup and restore of VM disks.
+
+Since :sinceVersion:`24.0.5: VMware Plugin` The Plugin can now save and recreate
+VMs with VirtualSerialPort devices.
+
+Since :sinceVersion:`24.0.3: VMware Plugin` The Plugin can now save and recreate
+VMs with VirtualUSB devices. Note that VirtualUSB devices could disappear when
+powering on the VM and the USB device is attached to a different running VM,
+so a warning message will be emitted when such devices are involved.
+
+Since :sinceVersion:`24.0.1: VMware Plugin` Previous versions of this plugin may have produced
+incomplete backups, because the CBT information was not retrieved completely in cases where
+the amount of changes was high, especially differential and incremental jobs were affected
+more probably. The issue is fixed in this version. To ensure consistent backups, it is recommended
+to run new full level jobs, as backups taken with previous versions may have an inconsonsistent
+state when restored.
+
+Since :sinceVersion:`23.0.3: VMware Plugin` the NVRAM of VMs is backed up and restored when recreating a VM to ensure it can boot without issues even when EFI enabled.
+
+Since :sinceVersion:`23.0.0: VMware Plugin` the performance is improved and the cleanup of snapshots is enhanced.
+
+Since :sinceVersion:`22.0.0: VMware Plugin` it also backs up the VM configuration metadata so that it can recreate deleted VMs and then restore the VM disks.
+
+Since :sinceVersion:`22.1.0: VMware Plugin` it is possible to backup and restore VMs which have 2 or more disks on different datastores. See below for related limitations.
+
+Since :sinceVersion:`22.1.0: VMware Plugin` on backup the plugin will retry when taking the snapshot fails, this is configurable by using the options **snapshot_retries** and **snapshot_retry_wait**, see below for details.
+
+
+Current limitations amongst others are:
+
+.. limitation:: VMware Plugin: Normal VM disks can not be excluded from the backup.
+
+   It is not yet possible to exclude normal (dependent) VM disks from backups.
+   However, independent disks are excluded implicitly because they are not affected
+   by snapshots which are required for CBT based backup.
+
+
+
+.. limitation:: VMware Plugin: Restore not possible on recreated VM when VM was created from template or OVA.
+
+   When creating a VM from template or OVA, the parameter **ddb.adaptertype** in the .vmdk file is changed from **lsilogic** to **buslogic** although SCSI adapter type is VMware Paravirtual or LSI Logic. Restore works to the same still existing VM, but when such a VM was completely removed so that the plugin recreates it via vSphere API, the newly created disk will have **ddb.adaptertype** set to **lsilogic** with different numbers of cylinders and heads which causes the restore to fail due to disk geometry mismatch. Currently there's no known workaround.
+
+
+.. limitation:: VMware Plugin: Restore to different vCenter Server is unsupported.
+
+   Restore to a different vCenter Server was not tested, it will probably not work, so it is currently unsupported.
+
+
+.. limitation:: VMware Plugin: Incremental or differential backups of disk which migrated to different datastore is currently unsupported.
+
+   When a disk of a VM was migrated to a different datastore, the plugin currently cannot handle incremental and differential backups properly. In that case, the plugin will detect it and fail the job. The job log will include an error message saying that full level backup of this job is required. Migrations of disks to other datastores can happen either manually or automatically when storage DRS is enabled.
+
+.. limitation:: VMware Plugin: Incremental or differential backups of removed and recreated disks or after CBT reset
+
+   When a disk of a VM was removed and then added again on the same datastore with the same name, or when a CBT reset happened, then the plugin will detect this and request the full level CBT information, and all allocated blocks of that disk will be backed up in an incremental or differential job as if it were a full level job. The restore of such a job will work, but it will take longer than necessary. The backup will terminate with a warning and a recommendation to run a full level job to optimize restore time.
+
+   Since :sinceVersion:`23.0.3: VMware Plugin` the plugin option **fallback_to_full_cbt=no** (see below) can be used to disable this and terminate the job with failure instead. This can be useful if it is desired to run a new full level job anyway.
+
+.. limitation:: VMware Plugin: Backup of templates is currently not possible
+
+   It is not possible to backup templates, because taking snapshots is not
+   supported on templates, this makes CBT based backups of template impossible.
+
+
+Requirements
+^^^^^^^^^^^^
+
+As the Plugin is based on the |vsphere| Storage APIs for Data Protection, which requires at least a |vsphere| Essentials License. It is tested against |vsphere| Storage APIs for Data Protection of |vmware| 7.0.1. It does not work with standalone unlicensed |vmware| ESXi\ |trade|.
+
+Since NQRustBackup :sinceVersion:`24.0.5: VMware Plugin: VDDK 9.0` the plugin is using the Virtual Disk Development Kit (VDDK) 9.0, as of the VDDK 9.0 release notes, it should be compatible with vSphere 9 and the next major release (except new features) and backward compatible with vSphere 7.0.x and 8.0.x, see VDDK release notes at https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere-sdks-tools/9-0/release-notes/virtual-disk-development-kit/virtual-disk-development-kit-90-release-notes.html for details.
+
+This plugin requires the pyVmomi module version 7.0.2 or greater. Since NQRustBackup :sinceVersion:`21.0.0: VMware Plugin: pyVmomi` the package **nqrustbackup-vmware-plugin** no longer includes a dependency on a pyVmomi package, because some Linux distributions don't provide current versions. Consequently, pyVmomi must be either installed by using :command:`pip install pyvmomi` or by manually installing a distribution provided pyVmomi package.
+Generally, the pyVmomi major version should match the used vSphere major version.
+For available versions see https://pypi.org/project/pyvmomi/
+
+Since :sinceVersion:`23.0.3: VMware Plugin` the plugin requires the modules
+**requests** and **urllib3** for backup and restore of the NVRAM.
+There is no dependency in the package. In most Linux distributions,
+the packages providing these modules can be used. The minimum version of
+**requests** must be 2.20.0 and **urllib3** must be at least 1.24.1.
+
+If :command:`pip install ...` returns the message
+**error: externally-managed-environment**, it is possible to install the
+required dependencies only for NQRustBackup Python plugins using the following
+command:
+
+.. code-block:: shell-session
+   :caption: Example Installing Python Modules only for NQRustBackup Plugins
+
+   BPP=$(python3 -c'import sys; print(f"/usr/{sys.platlibdir}/nqrustbackup/plugins")')
+   pip install -t $BPP --upgrade pyvmomi
+   pip install -t $BPP --upgrade requests
+   pip install -t $BPP --upgrade urllib3
+
+.. note::
+
+   Installing the **requests** and **urllib3** modules as described above
+   is only necessary when the required versions are not available packaged
+   for the used operating system. See below how to check the installed
+   versions.
+
+The following warning message is not relevant when using the above command,
+because it installs modules in a path which is not used by system packages:
+
+.. code-block:: shell-session
+   :caption: Warning message when using pip install -t as root
+
+   WARNING: Running pip as the 'root' user can result in broken permissions and conflicting
+   behaviour with the system package manager. It is recommended to use a virtual environment
+
+.. note::
+
+   It is currently not possible to use Python virtual environments for
+   NQRustBackup Python plugins.
+
+The versions of Python modules which have been installed with the above command
+can be checked as follows:
+
+.. code-block:: shell-session
+   :caption: Listing installed Python Modules only for NQRustBackup Plugins
+
+   BPP=$(python3 -c'import sys; print(f"/usr/{sys.platlibdir}/nqrustbackup/plugins")')
+   pip list --path $BPP
+
+System wide installed Python modules, both packaged and installed using **pip**,
+can be listed using the following command:
+
+.. code-block:: shell-session
+   :caption: Listing all installed Python Modules
+
+   pip list -v
+
+Installation
+^^^^^^^^^^^^
+
+Install the package **nqrustbackup-vmware-plugin** including its requirements by using an appropriate package management tool (eg. :command:`yum`, :command:`zypper`, :command:`apt`)
+
+Configuration
+^^^^^^^^^^^^^
+
+First add a user account in vCenter that has full privileges by assigning the account to an administrator role or by adding the account to a group that is assigned to an administrator role. While any user account with full privileges could be used, it is better practice to create a separate user account, so that the actions by this account logged in vSphere are clearly distinguishable. In the future a more detailed set of required role privileges may be defined.
+
+When using the vCenter appliance with embedded SSO, a user account usually has the structure :command:`<username>@vsphere.local`, it may be different when using Active Directory as SSO in vCenter. For the examples here, we will use :command:`bakadm@vsphere.local` with the password :command:`Bak.Adm-1234`.
+
+For more details regarding users and permissions see vSphere documentation at https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere/8-0/vsphere-security-8-0.html
+
+Make sure to add or enable the following settings in your |fd| configuration:
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-fd.d/client/myself.conf
+
+   Client {
+     ...
+     Plugin Directory = /usr/lib/nqrustbackup/plugins
+     Plugin Names = python3
+     ...
+   }
+
+Note: Depending on the platform, the Plugin Directory may also be :file:`/usr/lib64/nqrustbackup/plugins`
+
+To define the backup of a VM in NQRustBackup, a job definition and a fileset resource must be added to the NQRustBackup director configuration. In vCenter, VMs are usually organized in datacenters and folders. The following example shows how to configure the backup of the VM named *websrv1* in the datacenter *mydc1* folder *webservers* on the vCenter server :command:`vcenter.example.org`:
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-dir.conf: VMware Plugin Job and FileSet definition
+
+   Job {
+     Name = "vm-websrv1"
+     JobDefs = "DefaultJob"
+     FileSet = "vm-websrv1_fileset"
+   }
+
+   FileSet {
+     Name = "vm-websrv1_fileset"
+
+     Include {
+       Options {
+            Signature = XXH128
+            Compression = LZ4
+       }
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1:folder=/webservers"
+                ":vmname=websrv1"
+                ":vcserver=vcenter.example.org"
+                ":vcuser=bakadm@vsphere.local"
+                ":vcpass=Bak.Adm-1234"
+     }
+   }
+
+For VMs defined in the root-folder, :command:`folder=/` must be specified in the Plugin definition.
+
+Since NQRustBackup :sinceVersion:`17.2.4: nqrustbackup-vmware-plugin: module\_path without vmware\_plugin subdirectory` the :strong:`module\_path` is without :file:`vmware_plugin` directory. On upgrades you either adapt your configuration from
+
+.. code-block:: nqrustbackupconfig
+   :caption: python:module\_path for NQRustBackup < 17.2.0
+
+   Plugin = "python"
+            ":module_path=/usr/lib64/nqrustbackup/plugins/vmware_plugin"
+            ":module_name=nqrustbackup-fd-vmware"
+            ":..."
+
+to
+
+.. code-block:: nqrustbackupconfig
+   :caption: python:module\_path for NQRustBackup >= 17.2.0
+
+   Plugin = "python"
+            ":module_path=/usr/lib64/nqrustbackup/plugins"
+            ":module_name=nqrustbackup-fd-vmware"
+            ":..."
+
+or install the **nqrustbackup-vmware-plugin-compat** package which includes compatibility symbolic links.
+
+Since :sinceVersion:`17.2.4: VMware Plugin: vcthumbprint`: The Plugin is using the Virtual Disk Development Kit (VDDK), which requires to pass the thumbprint of the vCenter SSL Certificate since version 6.5. The thumbprint is the SHA1 checksum of the SSL Certificate. The thumbprint can be retrieved like this:
+
+.. code-block:: shell-session
+   :caption: Example Retrieving vCenter SSL Certificate Thumbprint
+
+   echo -n | openssl s_client -connect vcenter.example.org:443 2>/dev/null | openssl x509 -noout -fingerprint -sha1  | tr -d ":"
+
+The result would look like this:
+
+.. code-block:: shell-session
+   :caption: Example Result Thumbprint
+
+   SHA1 Fingerprint=AABBCCDDEEFF11223344556677889900AABBCCDD
+
+For additional security, there is a now plugin option :command:`vcthumbprint`, that can optionally be added. It must be given without colons like in the following example:
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-dir.conf: VMware Plugin Options with vcthumbprint
+
+       ...
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1:folder=/webservers"
+                ":vmname=websrv1"
+                ":vcserver=vcenter.example.org"
+                ":vcuser=bakadm@vsphere.local"
+                ":vcpass=Bak.Adm-1234"
+                ":vcthumbprint=AABBCCDDEEFF11223344556677889900AABBCCDD"
+       ...
+
+If the **vcthumbprint** option is used and the thumbprint on the server changes, for example by renewing or replacing the SSL certificate but not adapting the vcthumbprint parameter in the NQRustBackup configuration, backup jobs will fail and the API will only return an "unknown" error. Since :sinceVersion:`22.1.0: VMware Plugin:` the plugin will compare the configured thumbprint with the server thumbprint and emit an appropriate error message and advice to update vcthumbprint parameter.
+
+For ease of use (but less secure) when the :command:`vcthumbprint` is not given, the plugin will retrieve the thumbprint.
+
+Also since :sinceVersion:`17.2.4: VMware Plugin: transport=nbdssl` another optional plugin option has been added that can be used for trying to force a given transport method. Normally, when no transport method is given, VDDK will negotiate available transport methods and select the best one. For a description of transport methods, see
+
+https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere-sdks-tools/9-0/virtual-disk-development-kit-programming-guide/virtual-disk-interfaces/virtual-disk-transport-methods.html
+
+When the plugin runs in a VMware virtual machine which has access to datastore where the virtual disks to be backed up reside, VDDK will use the hotadd transport method. On a physical server without SAN access, it will use the NBD transport method, hotadd transport is not available in this case.
+
+To try forcing a given transport method, the plugin option :command:`transport` can be used, for example
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-dir.conf: VMware Plugin options with transport
+
+       ...
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1"
+                ":folder=/webservers"
+                ":vmname=websrv1"
+                ":vcserver=vcenter.example.org"
+                ":vcuser=bakadm@vsphere.local"
+                ":vcpass=Bak.Adm-1234"
+                ":transport=nbdssl"
+       ...
+
+Note that the backup will fail when specifying a transport method that is not available.
+
+Since :sinceVersion:`17.2.8: VMware Plugin: non-ascii characters` it is possible to use non-ascii characters and blanks in the configuration for :strong:`folder` and :strong:`vmname`. Also virtual disk file names or paths containing non-ascii characters are handled correctly now. For backing up VMs that are contained in vApps, it is now possible to use the vApp name like a folder component. For example, if we have the vApp named
+:command:`Test vApp` in the folder :file:`/Test/Test Folder` and the vApp contains the two VMs :command:`Test VM 01` and :command:`Test VM 02`, then the configuration of the filesets should look like this:
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-dir.conf: VMware Plugin FileSet definition for vApp
+
+   FileSet {
+     Name = "vApp_Test_vm_Test_VM_01_fileset"
+
+     Include {
+       Options {
+            Signature = XXH128
+            Compression = LZ4
+       }
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1"
+                ":folder=/Test/Test Folder/Test vApp"
+                ":vmname=Test VM 01"
+                ":vcserver=vcenter.example.org"
+                ":vcuser=bakadm@vsphere.local"
+                ":vcpass=Bak.Adm-1234"
+     }
+   }
+
+   FileSet {
+     Name = "vApp_Test_vm_Test_VM_02_fileset"
+
+     Include {
+       Options {
+            Signature = XXH128
+            Compression = LZ4
+       }
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1"
+                ":folder=/Test/Test Folder/Test vApp"
+                ":vmname=Test VM 02"
+                ":vcserver=vcenter.example.org"
+                ":vcuser=bakadm@vsphere.local"
+                ":vcpass=Bak.Adm-1234"
+     }
+   }
+
+However, it is important to know that it is not possible to use non-ascii characters as an argument for the :strong:`Name`\  of a job or fileset resource.
+
+Since :sinceVersion:`20: VMware Plugin: config file` it is optionally possible to use a configuration file on the system running the NQRustBackup File Daemon. This can be useful to specify common plugin options instead of having to repeat them in every Fileset. Options which are specified in the config file will override options from the Fileset, if the same option is given there, too. A warning will be issued in that case. Use the plugin option **config_file** to specify the config file name as in the following example:
+
+.. code-block:: nqrustbackupconfig
+   :caption: nqrustbackup-dir.conf: VMware Plugin Job and FileSet definition with config_file
+
+   FileSet {
+     Name = "vm-websrv1_fileset"
+
+     Include {
+       Options {
+            Signature = XXH128
+            Compression = LZ4
+       }
+       Plugin = "python"
+                ":module_name=nqrustbackup-fd-vmware"
+                ":dc=mydc1"
+                ":folder=/webservers"
+                ":vmname=websrv1"
+                ":config_file=/etc/nqrustbackup/vmware-plugin.ini"
+     }
+   }
+
+And the config file as follows:
+
+.. code-block:: nqrustbackupconfig
+   :caption: /etc/nqrustbackup/vmware-plugin.ini
+
+   [vmware_plugin_options]
+   vcserver=vcenter.example.org
+   vcuser=bakadm@vsphere.local
+   vcpass=Bak.Adm-1234
+
+.. note::
+
+   Do not use quotes in the above config file, it is processed by the Python ConfigParser module and the quotes would not be stripped from the string.
+
+Since :sinceVersion:`20: VMware Plugin: quiesce` To allow backing up VMs which do not support quiesced snapshots, it is now possible to use the plugin option **quiesce**. By default quiescing when not explicitly using this option, quiescing is enabled to create backups that are as consistent as possible. When setting **quiesce=no** it is more likely to backup an inconsistent state. In this case, the backup job log will contain an appropriate warning and the the job termination will be **Backup OK -- with warnings**.
+
+Quiescing on Windows VMs also triggers VSS snapshot when VMware Tools are
+installed.
+If that fails for example on MS SQL Server, it can help to disable VSS
+application quiescing using the VMware Tools configuration by adding
+this to the VMware Tools config:
+
+.. code-block:: nqrustbackupconfig
+
+   [vmbackup]
+   vss.disableAppQuiescing = true
+
+For details see https://knowledge.broadcom.com/external/article?legacyId=2146204
+
+It is also possible to disable specific VSS writers with VMware Tools.
+The article https://knowledge.broadcom.com/external/article?legacyId=1031200
+describes how to check VSS writer errors and how to disable specific VSS
+writers in the VMware Tools configuration.
+
+For consistent backups of MS SQL server, please use the NQRustBackup **MSSQL Plugin**.
+
+Backup
+^^^^^^
+
+Before running the first backup, CBT (Changed Block Tracking) must be enabled for the VMs to be backed up.
+
+Since :sinceVersion:`22.1.1: VMware Plugin: enable_cbt` the plugin will try to
+enable CBT automatically when the plugin option **enable_cbt=yes** is set (see below).
+Since :sinceVersion:`23.0.0: VMware Plugin: enable_cbt` this option is set to **yes** by default.
+
+As of https://knowledge.broadcom.com/external/article?legacyId=2075984 manually enabling CBT is currently not working properly. The API however works properly. To enable CBT use the Script :command:`vmware_cbt_tool.py`, it is packaged in the nqrustbackup-vmware-plugin package:
+
+.. code-block:: shell-session
+   :caption: usage of vmware\_cbt\_tool.py
+
+   user@host:~$ vmware_cbt_tool.py --help
+   usage: vmware_cbt_tool.py [-h] -s HOST [-o PORT] -u USER [-p PASSWORD] -d
+                             DATACENTER [-f FOLDER] [-v VMNAME]
+                             [--vm-uuid VM_UUID] [--enablecbt] [--disablecbt]
+                             [--resetcbt] [--info] [--listall] [--sslverify]
+                             [--dumpvmconfig]
+
+   Process args for enabling/disabling/resetting CBT
+
+   optional arguments:
+     -h, --help            show this help message and exit
+     -s HOST, --host HOST  Remote host to connect to
+     -o PORT, --port PORT  Port to connect on
+     -u USER, --user USER  User name to use when connecting to host
+     -p PASSWORD, --password PASSWORD
+                           Password to use when connecting to host
+     -d DATACENTER, --datacenter DATACENTER
+                           DataCenter Name
+     -f FOLDER, --folder FOLDER
+                           Folder Name (must start with /, use / for root folder
+     -v VMNAME, --vmname VMNAME
+                           Names of the Virtual Machines
+     --vm-uuid VM_UUID     Instance UUIDs of the Virtual Machines
+     --enablecbt           Enable CBT
+     --disablecbt          Disable CBT
+     --resetcbt            Reset CBT (disable, then enable)
+     --info                Show information (CBT supported and enabled or
+                           disabled)
+     --listall             List all VMs in the given datacenter with UUID and
+                           containing folder
+     --sslverify           Force SSL certificate verification
+     --dumpvmconfig        Dump VM config metadata to JSON file
+
+.. note::
+
+   The options :command:`--vm-uuid` and :command:`--listall` have been added in version :sinceVersion:`17.2.8: VMware Plugin: new options in vmware\_cbt\_tool.py`, the tool is also able now to process non-ascii character arguments for the :command:`--folder` and :command:`--vmname` arguments and vApp names can be used like folder name components.
+
+With :command:`--listall` all VMs in the given datacenter are reported in a tabular output including instance UUID and containing Folder/vApp name.
+
+Without the option :command:`--sslverify` also self-signed SSL certificates will
+be accepted, but a warning message will be emitted in this case.
+
+The option :command:`--dumpvmconfig` is helpful to debug issues with the transformation
+of VM config metadata for recreating virtual machines.
+The JSON file will be written to the current working directory when this option is used.
+
+For the above configuration example, the command to enable CBT would be
+
+.. code-block:: shell-session
+   :caption: Example using vmware\_cbt\_tool.py
+
+   user@host:~$ vmware_cbt_tool.py -s vcenter.example.org -u bakadm@vsphere.local -p Bak.Adm-1234 -d mydc1 -f /webservers -v websrv1 --enablecbt
+
+Note: CBT does not work if the virtual hardware version is 6 or earlier.
+
+After enabling CBT, Backup Jobs can be run or scheduled as usual, for example in :command:`nqrustbackup_console`:
+
+:bcommand:`run job=vm-websrv1 level=Full`
+
+Restore
+^^^^^^^
+
+For restoring to the same still existing VM from which the backup has been taken, the VM must be **powered off** and **no snapshot** must exist. In :command:`nqrustbackup_console` use the restore menu 5, select the correct FileSet and enter :bcommand:`mark *`, then :bcommand:`done`. After restore has finished, the VM will be set to its previous powerstate. So if it was powered on at backup time, it will be powered on after restore. This can be changed by using the plugin option :command:`restore_powerstate` (see below).
+
+Since :sinceVersion:`22.0.0: VMware Plugin: recreate VMs` the plugin will recreate the VM if it does not exist. By passing plugin options, with this version it is also possible to recreate the VM in a different folder, datacenter, host, cluster, resource pool or datastore, see below for details. The MAC address and the UUID of the VM will be restored, too. Restoring to a different VM location, eg, by passing a different folder, will **create a new VM** even **if the VM** which was backed up **still exists**. In this case, the new VM will get a new generated MAC address and UUID.
+
+.. note::
+
+   When restoring a VM to a different location while the backed up VM still exists and a static IP is configured within the VM: To avoid IP address conflicts, make sure to also add the plugin option :command:`restore_powerstate=off` and disable or change the network adapter configuration of the VM before powering it on.
+
+To restore to a different folder, datacenter, host, cluster, resource pool or datastore, the corresponding plugin options must be passed. All plugin options which have been effective at backup time will be passed on restore and each individual option can be overridden by passing an options string at restore time. For example, to restore to a different VM name and different datastore, pass the following plugin option string:
+
+.. code-block:: nqrustbackup_console
+   :caption: Example restore plugin options string
+
+   python:datastore=datastore2:vmname=testvm1restored
+
+All other plugin options which are not passed explicitly on restore will be the same as at backup time.
+
+Note that most plugin options are used for backup and restore, but there are some which can be only used on restore, for example to prevent from powering on the VM automatically after restore if it was powered on at backup time, use this plugin options string:
+
+.. code-block:: nqrustbackup_console
+   :caption: Example restore plugin options string with powerstate
+
+   python:restore_datastore=datastore2:vmname=testvm1restored:restore_powerstate=off
+
+See below for a complete restore example and description of all plugin options.
+
+
+Restore using NQRustBackup WebUI
+''''''''''''''''''''''''''
+
+Since :sinceVersion:`22.0.0: VMware Plugin: Restore using WebUI` it is possible to use the NQRustBackup WebUI to restore VMware Plugin jobs.
+
+When using the WebUI to restore a VMware Plugin job, it is **important** to set *Merge all client file sets* to **no** and *Merge all jobs up to the last full backup together* to **yes**. In the *File selection* all files must be selected. Only restoring selected virtual disks will probably not work and is currently unsupported. The NQRustBackup WebUI will detect if a plugin based jobs is restore and will then show an additional *Plugin options* field, here a plugin options string starting with ``python:`` as described above can be entered.
+
+.. image:: /include/images/nqrustbackup-webui-restore-with-pluginoptions.*
+   :width: 80.0%
+
+Restore to local VMDK File
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:index:`\ <single: VMware Plugin; VMDK files>`\
+
+Since :sinceVersion:`15.2.3: VMware Plugin: restore to VMDK files` it is possible to restore to local VMDK files. That means, instead of directly restoring a disk that belongs to the VM, the restore creates VMDK disk image files on the filesystem of the system that runs the |fd|. As the VM that the backup was taken from is not affected by this, it can remain switched on while restoring to local VMDK. Such a restored VMDK file can then be uploaded to a
+|vsphere| datastore or accessed by tools like `guestfish <https://libguestfs.org/guestfish.1.html>`_ to extract single files.
+
+For restoring to local VMDK, the plugin option :strong:`localvmdk=yes` must be passed. The following example shows how to perform such a restore using :command:`nqrustbackup_console`:
+
+.. code-block:: nqrustbackup_console
+   :caption: Example restore to local VMDK
+
+   *<input>restore</input>
+   Automatically selected Catalog: MyCatalog
+   Using Catalog "MyCatalog"
+
+   First you select one or more JobIds that contain files
+   to be restored. You will be presented several methods
+   of specifying the JobIds. Then you will be allowed to
+   select which files from those JobIds are to be restored.
+
+   To select the JobIds, you have the following choices:
+        1: List last 20 Jobs run
+        ...
+        5: Select the most recent backup for a client
+        ...
+       13: Cancel
+   Select item:  (1-13): <input>5</input>
+   Automatically selected Client: vmw5-nqrustbackup-centos6-64-devel-fd
+   The defined FileSet resources are:
+        1: Catalog
+        ...
+        5: PyTestSetVmware-test02
+        6: PyTestSetVmware-test03
+        ...
+   Select FileSet resource (1-10): <input>5</input>
+   +-------+-------+----------+---------------+---------------------+------------------+
+   | jobid | level | jobfiles | jobbytes      | starttime           | volumename       |
+   +-------+-------+----------+---------------+---------------------+------------------+
+   |   625 | F     |        4 | 4,733,002,754 | 2016-02-18 10:32:03 | Full-0067        |
+   ...
+   You have selected the following JobIds: 625,626,631,632,635
+
+   Building directory tree for JobId(s) 625,626,631,632,635 ...
+   10 files inserted into the tree.
+
+   You are now entering file selection mode where you add (mark) and
+   remove (unmark) files to be restored. No files are initially added, unless
+   you used the "all" keyword on the command line.
+   Enter "done" to leave this mode.
+
+   cwd is: /
+   $ <input>mark *</input>
+   10 files marked.
+   $ <input>done</input>
+   Bootstrap records written to /var/lib/nqrustbackup/vmw5-nqrustbackup-centos6-64-devel-dir.restore.1.bsr
+
+   The job will require the following
+      Volume(s)                 Storage(s)                SD Device(s)
+   ===========================================================================
+
+       Full-0001                 File                      FileStorage
+       ...
+       Incremental-0078          File                      FileStorage
+
+   Volumes marked with "*" are online.
+
+   10 files selected to be restored.
+
+   Using Catalog "MyCatalog"
+   Run Restore job
+   JobName:         RestoreFiles
+   Bootstrap:       /var/lib/nqrustbackup/vmw5-nqrustbackup-centos6-64-devel-dir.restore.1.bsr
+   Where:           /tmp/nqrustbackup-restores
+   Replace:         Always
+   FileSet:         Linux All
+   Backup Client:   vmw5-nqrustbackup-centos6-64-devel-fd
+   Restore Client:  vmw5-nqrustbackup-centos6-64-devel-fd
+   Format:          Native
+   Storage:         File
+   When:            2016-02-25 15:06:48
+   Catalog:         MyCatalog
+   Priority:        10
+   Plugin Options:  *None*
+   OK to run? (yes/mod/no): <input>mod</input>
+   Parameters to modify:
+        1: Level
+        ...
+       14: Plugin Options
+   Select parameter to modify (1-14): <input>14</input>
+   Please enter Plugin Options string: <input>python:localvmdk=yes</input>
+   Run Restore job
+   JobName:         RestoreFiles
+   Bootstrap:       /var/lib/nqrustbackup/vmw5-nqrustbackup-centos6-64-devel-dir.restore.1.bsr
+   Where:           /tmp/nqrustbackup-restores
+   Replace:         Always
+   FileSet:         Linux All
+   Backup Client:   vmw5-nqrustbackup-centos6-64-devel-fd
+   Restore Client:  vmw5-nqrustbackup-centos6-64-devel-fd
+   Format:          Native
+   Storage:         File
+   When:            2016-02-25 15:06:48
+   Catalog:         MyCatalog
+   Priority:        10
+   Plugin Options:  python: module_path=/usr/lib64/nqrustbackup/plugins:module_name=nqrustbackup-fd-vmware: dc=dass5:folder=/: vmname=stephand-test02: vcserver=virtualcenter5.dass-it:vcuser=bakadm@vsphere.local: vcpass=Bak.Adm-1234: localvmdk=yes
+   OK to run? (yes/mod/no): <input>yes</input>
+   Job queued. JobId=639
+
+Note: Since NQRustBackup :sinceVersion:`15.2.3: Add additional python plugin options`
+it is sufficient to add Python plugin options, e.g. by
+
+.. code-block:: nqrustbackupconfig
+
+   python:localvmdk=yes
+
+Before, all Python plugin must be repeated and the additional be added, like:
+
+.. code-block:: nqrustbackupconfig
+
+   "python:module_name=nqrustbackup-fd-vmware:dc=dass5:folder=/:vmname=stephand-test02:vcserver=virtualcenter5.dass-it:vcuser=bakadm@vsphere.local:vcpass=Bak.Adm-1234:localvmdk=yes"
+
+After the restore process has finished, the restored VMDK files can be found under \path{/tmp/nqrustbackup-restores/}:
+
+.. code-block:: shell-session
+   :caption: Example result of restore to local VMDK
+
+   $ <input>ls -laR /tmp/nqrustbackup-restores</input>
+   /tmp/nqrustbackup-restores:
+   total 28
+   drwxr-x--x.  3 root root  4096 Feb 25 15:47 .
+   drwxrwxrwt. 17 root root 20480 Feb 25 15:44 ..
+   drwxr-xr-x.  2 root root  4096 Feb 25 15:19 [ESX5-PS100] stephand-test02
+
+   $ <input>ls -la "/tmp/nqrustbackup-restores/[ESX5-PS100] stephand-test02"</input>
+   /tmp/nqrustbackup-restores/[ESX5-PS100] stephand-test02:
+   total 7898292
+   drwxr-xr-x. 2 root root       4096 Feb 25 15:19 .
+   drwxr-x--x. 3 root root       4096 Feb 25 15:47 ..
+   -rw-------. 1 root root 2075197440 Feb 25 15:19 stephand-test02_1.vmdk
+   -rw-------. 1 root root 6012731392 Feb 25 15:19 stephand-test02.vmdk
+
+
+Description of all Plugin Options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Note that all plugin options that have been used at backup time, are passed on restore. The VM metadata is saved in restoreobjects both in the catalog DB and volume, it is used on restore if the VM must be recreated. Most options are used for both backup and restore, some which can be only used for restore start with **restore_**. Where nothing special is mentioned regarding restore, it is normally not necessary or useful to override that option on restore.
+
+vcserver (mandatory on backup)
+   Hostname (FQDN) or IP address of vCenter server. Restore to different vCenter Server is unsupported.
+
+vcuser (mandatory on backup)
+   Username for API access to vCenter, eg. administrator@vsphere.local
+
+vcpass (mandatory on backup)
+   Password for API access to vCenter
+
+dc (mandatory on backup)
+   Datacenter name. This can be optionally passed on restore to recreate the VM in a different datacenter.
+   If the datacenter is not located in the root folder, it is required to
+   specify the full path including the datacenter name starting with the slash
+   character, for example :file:`dc=/My DC Folder/mydc1`.
+
+folder (mandatory on backup)
+   The VM folder in which the VM to be backed up resides. This must be given like a UNIX path with ``/`` as separator. On restore if defined will recreate the VM in a different folder. The given folder must exist before starting the restore.
+
+vmname (mandatory on backup)
+   The name of the VM to be backed up. On restore it is possible to override this option in order to recreate the VM with a different name.
+
+vcthumbprint (optional)
+   Thumbprint of the vCenter SSL Certificate, which is the SHA1 checksum of the SSL Certificate
+
+transport (optional)
+   Normally the transport mode mode will be autonegotiated, eg. if the system that runs this plugin is a VM has storage access to the datastore of the VM that's being backed up, the *hotadd* transport will be used. Otherwise the *nbd* or *nbdssl* transport. For details about transport modes see the VDDK documentation. This option can be used to force the given transport mode.
+
+log_path (optional)
+   The default log path is :file:`/var/log/nqrustbackup/`. A different path can be specified using this option, it will be used for ``nqrustbackup_vadp_dumper`` log files.
+
+localvmdk (optional)
+   Restore to local ``.vmdk`` file(s) instead of restore to VM. Default is *no*.
+
+vadp_dumper_verbose (optional)
+   When setting ``vadp_dumper_verbose=yes``, the option ``-v`` will be added when running ``nqrustbackup_vadp_dumper``. This can be helpful for debugging purposes.
+
+verifyssl (optional)
+   By default the validity of SSL certificates will be verified. By setting ``verifyssl=no`` this can be disabled.
+
+quiesce (optional)
+   The backed up VM will be triggered to quiesce its filesystems before creating a snapshot by default to increase the data consistency. This can fail or take very long on a VM which runs heavy I/O workload. When setting ``quiesce=no`` the quiescing will be skipped, but the snapshot may be inconsistent. It is not recommended to use this option, instead try stop heavy I/O load before snapshot. This could be possible by running pre-freeze and post-thaw actions which can be configured in VMware tools, see VMware documentation for details.
+
+cleanup_tmpfiles (optional)
+   By default, temporary files created by the plugin will be cleaned up after backup or restore. When setting ``cleanup_tmpfiles=no`` they will be left over, this can be helpful for debugging purposes. Since :sinceVersion:`22.0.0: VMware Plugin`
+
+restore_esxhost (optional)
+   By default, if a VM to be restored does not exist, it will be recreated on the same host that it has been running on at backup time. Use this option to restore on the given ESX host. Since :sinceVersion:`22.0.0: VMware Plugin`
+
+restore_cluster (optional)
+   Instead of specifying *restore_esxhost*, it is also possible to specify a cluster name using this option, the ESX host will be autoselected in that case, if DRS is configured properly. Since :sinceVersion:`22.0.0: VMware Plugin`
+
+restore_datastore (optional)
+   By default, if a VM to be restored does not exist, it will be recreated in the same datastore where it was stored at backup time. Use this option to restore on the given datastore. Since :sinceVersion:`22.0.0: VMware Plugin`. As :sinceVersion:`22.1.0: VMware Plugin` it is possible to backup and restore VMs with disks on multiple datastores, when using this option, it will only change the datastore of the disks which were stored in the same datastore as the VM, the other disks will be recreated on the same datastore they were backed up from.
+
+restore_resourcepool (optional)
+   By default, if a VM to be restored does not exist, it will be recreated in the same resource pool which it has in been in at backup time. Using this option allows to override this and specify a different resource pool. Since :sinceVersion:`22.0.0: VMware Plugin`
+
+restore_powerstate (optional)
+   By **default**, after restore a VM will be set to its **previous powerstate** which means the powerstate at backup time. When specifying ``restore_powerstate=off`` the VM will stay powered off after restore. Also can be forced to on with ``restore_powerstate=on``. Note that this will only work if DRS is configured to **fully automated**, otherwise the API request to power on a VM will be ignored. Since :sinceVersion:`22.0.0: VMware Plugin`
+
+snapshot_retries (optional)
+   Number of retries when taking a snapshot fails (default: 3). The most common cause of snapshot failure is "error while quiescing the virtual machine". In this case usually retrying helps. If not, also check if a pre-freeze script is used on the VM, as a non-zero exit code will cause a quiescing error. The pre-freeze and post-thaw scripts are executed by VMwareTools. Since :sinceVersion:`22.1.0: VMware Plugin`
+
+snapshot_retry_wait (optional)
+  Time in seconds to wait before the next snapshot retry (default: 5). Since :sinceVersion:`22.1.0: VMware Plugin`
+
+poweron_timeout (optional)
+   Timeout in seconds to wait for a VM to be powered on after restore, default 15s. When a VM is powered on after restore (see also the option *restore_powerstate* above), the plugin will check if it succeeded by checking the power state. If it is not powered on within this timeout, the restore job will issue a warning message.
+
+enable_cbt (optional)
+   When using ``enable_cbt=yes``, the plugin will enable CBT (changed block
+   tracking) if possible and it is not yet enabled.
+   It is required that no snapshot exists when enabling CBT, otherwise the
+   plugin will emit an error message.
+   By default this option is set to **yes** since :sinceVersion:`23.0.0: VMware Plugin`
+   so that ``vmware_cbt_tool.py`` is no longer necessary to enable CBT.
+   This option exists since :sinceVersion:`22.1.1: VMware Plugin`
+
+do_io_in_core (optional)
+   With the option ``do_io_in_core=yes`` the data stream from the
+   `nqrustbackup_vadp_dumper` will be processed directly by the NQRustBackup core via file descriptor.
+   When set to **no**, the data stream is read and written by the Python plugin
+   code from the file descriptor and exchanged with the core over a buffer.
+   So enabling this can improve the performance and will save CPU resource consumption.
+   See :ref:`section-Python Plugin API` for more details.
+   By default this is set to **yes**. Since :sinceVersion:`23.0.0: VMware Plugin`
+
+vadp_dumper_multithreading (optional)
+   The option ``vadp_dumper_multithreading=yes`` enables multithreading when
+   running `nqrustbackup_vadp_dumper`, so that it will run one reader and one writer
+   thread.
+   By default it is set to **yes** as nowadays CPUs usually have multiple cores,
+   so this improves the performance in most cases.
+   Since :sinceVersion:`23.0.0: VMware Plugin`
+
+vadp_dumper_sectors_per_call (optional)
+   This option can be used to optimize the performance. The default value it is set
+   to **16384**. This is the smallest value that achieved the maximum
+   throughput in our benchmark tests.
+   Together with ``vadp_dumper_multithreading=yes`` this setting can improve
+   the backup performance significantly.
+   Since :sinceVersion:`23.0.0: VMware Plugin`
+
+vadp_dumper_query_allocated_blocks_chunk_size (optional)
+   The `nqrustbackup_vadp_dumper` uses a VDDK function to query the allocated blocks
+   of virtual disks since :sinceVersion:`23.0.0: VMware Plugin`.
+   Especially for full backups, this normally leads to smaller and implicitly faster backups.
+   By setting this plugin option, the chunk size which is passed to that
+   function can be set.  The default value for the chunk size is **1024**.
+   Allowed values are powers of two between 128 and 131072, inclusive.
+   In our benchmark tests with small VMs of 3GB size, this value did not have
+   any performance impact. However, with more data it might have an impact on
+   the backup performance.
+
+fallback_to_full_cbt (optional)
+   In some situations requesting the CBT information for an incremental backup
+   can fail, for example when the CBT information had to be reset. In that
+   case, by default the plugin will fall back to request full level CBT
+   information, which leads to a successful incremental backup job, but it
+   will have the size of a full level backup job. As a consequence, restore
+   time would increase, so a warning will be emitted in the job log, recommending
+   a new full level backup.
+   By setting ``fallback_to_full_cbt=no``, the job will not request full level
+   CBT and terminate immediately with failure instead. This can be used if it
+   is desired to run a subsequent new full level backup. Note that this does not
+   happen automatically, a new full level job must be run manually afterwards,
+   but this can be automated by using a post backup script, for details see
+   https://github.com/nqrustbackup/nqrustbackup/tree/master/contrib/misc/reschedule_job_as_full
+
+   Since :sinceVersion:`23.0.3: VMware Plugin`
+
+restore_allow_disks_mismatch (optional)
+   When using VSAN, restoring with recreating the VM can fail because the plugin
+   detects a disk mismatch, as when using VSAN obviously recreated disks get a
+   generated backing disk path. When passing the plugin option
+   ``restore_allow_disks_mismatch=yes``, this disk match check will allow a
+   mismatch and continue the restore.
+   This option will only be used when recreating the VM to be restored.
+
+   Since :sinceVersion:`23.0.4: VMware Plugin`
+
+nvram_connect_timeout (optional)
+   When backing up or restoring NVRAM, this is done by HTTPS connection to
+   the vCenter server. The connect timeout in seconds can be changed using this
+   parameter, the default is 30s.
+
+   Since :sinceVersion:`25.0.5: VMware Plugin`
+
+nvram_readwrite_timeout (optional)
+   When backing up or restoring NVRAM, this is done by reading or writing it
+   via HTTPS connection to/from the vCenter server. The timeout in seconds 
+   can be changed using this parameter, the default is 60s.
+
+   Since :sinceVersion:`25.0.5: VMware Plugin`
+
+
+uuid (deprecated)
+   The uuid option could be used instead of *dc*, *folder* and *vmname* to uniquely address a VM for backup. As the plugin since :sinceVersion:`22.0.0: VMware Plugin` is able recreate VMs in a different datacenter, folder or datastore, this option has become useless. When using uuid, restoring is only possible to the same still existing VM. It is recommended to change the configuration, as the uuid option will be dropped in the next version.

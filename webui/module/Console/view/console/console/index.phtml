@@ -1,0 +1,112 @@
+<?php
+
+/**
+*
+* nqrustbackup-webui - NQRust Backup Web Console
+*
+* @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+* @copyright Copyright (c) 2013-2024 NQRustBackup GmbH & Co. KG (https://www.nqrustbackup.org/)
+* @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Affero General Public License for more details.
+*
+* You should have received a copy of the GNU Affero General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+*/
+
+$title = 'Director';
+$this->headTitle($title);
+
+?>
+
+<br />
+
+<?php if($this->acl_alert) : echo $this->ACLAlert($this->invalid_commands); else : ?>
+
+<div class="nq-console-header">
+   <span><?php echo $this->translate("Operator Console"); ?></span>
+   <h1><?php echo $this->translate("Director command session"); ?></h1>
+   <p><?php echo $this->translate("Run approved one-line commands against the active NQRust Backup Director."); ?></p>
+</div>
+
+<pre class="nqrustbackup-console" id="nqrustbackup-console" onclick="focusScreen();">
+   <p><?php echo $this->translate("Console session (batch-mode), please handle with care."); ?><br /><?php echo $this->translate("All commands have to be a one liner, dialogs are not working."); ?><br /><?php echo $this->translate("Type help for a list of commands."); ?></p>
+   <div class="prompt"><label>* </label><input type="text" class="cli" id="cli" value="" autocomplete="off" spellcheck="false" /></div>
+</pre>
+
+<br />
+
+<div class="nq-console-actions">
+   <input class="btn btn-primary" type="button" value="Clear" onclick="clearscr();"/>
+   <input class="btn btn-primary" type="button" value="Help" onclick="help();"/>
+</div>
+
+<script>
+
+function focusScreen() {
+   document.getElementById('cli').focus();
+   $('.nqrustbackup-console').scrollTop($('.nqrustbackup-console')[0].scrollHeight - $('.nqrustbackup-console')[0].clientHeight);
+}
+
+function clearscr() {
+   $(".output").remove();
+   document.getElementById('cli').focus();
+}
+
+function help() {
+   send("help");
+   document.getElementById('cli').focus();
+}
+
+function send(cmd) {
+
+   $("<div class='output'>* "+cmd+"</div>").insertBefore(".prompt");
+
+   if(cmd == "") {
+      focusScreen();
+   } else {
+      $('.prompt').hide();
+      var request = $.ajax({
+         method: "POST",
+         url: "<?php echo $this->url('api/console', array(), array()); ?>",
+         data: {
+            "command": cmd
+         },
+         dataType: "json",
+      });
+      request.done(function(msg) {
+         $("<div class='output'>"+msg.replace(/(?:\r\n|\r|\n)/g, '<br />')+"</div>").insertBefore(".prompt");
+         $('.prompt').show();
+         document.getElementById('cli').value = "";
+         focusScreen();
+      });
+   }
+
+   
+}
+
+var cli = document.getElementById("cli");
+
+cli.addEventListener("keydown", function (e) {
+   if (e.keyCode === 13) {
+      var cmd = document.getElementById('cli').value;
+      send(cmd);
+   }
+});
+
+$(document).ready(function() {
+   focusScreen();
+});
+
+</script>
+
+<?php endif; ?>

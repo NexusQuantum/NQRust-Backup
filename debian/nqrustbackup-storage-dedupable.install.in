@@ -1,0 +1,3 @@
+@backenddir@/libnqrustbackupsd-dedupable.so*
+@configtemplatedir@/nqrustbackup-dir.d/storage/Dedupable.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/Dedupable.conf.example

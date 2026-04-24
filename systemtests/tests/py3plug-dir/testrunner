@@ -1,0 +1,70 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# This systemtest tests the plugin functionality
+# of the NQRustBackup DIR by using the module
+#   nqrustbackup-dir-test.py
+#
+# This test will backup some files. While the
+# backup some events of the director will be
+# logged from the python module.
+# This testrunner will check if all events
+# have been logged.
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+LSAN_OPTIONS=suppressions="$(pwd)/lsan-suppressions.txt"
+export LSAN_OPTIONS
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+# Use a tgz to setup data to be backuped.
+# Fill ${BackupDirectory} with data.
+setup_data
+
+start_test
+
+cat <<END_OF_DATA >$tmp/bconcmds
+@$out ${NULL_DEV}
+messages
+@$out $tmp/log1.out
+setdebug level=200 trace=1 dir
+label volume=TestVolume001 storage=File pool=Full
+run job=backup-nqrustbackup-fd1 yes
+run job=backup-nqrustbackup-fd2 yes
+run job=backup-nqrustbackup-fd3 yes
+run job=backup-nqrustbackup-fd4 yes
+status director
+status client
+status storage=File
+wait
+messages
+quit
+END_OF_DATA
+
+run_nqrustbackup "$@"
+check_for_zombie_jobs storage=File
+
+for i in bDirEventJobStart bDirEventJobInit bDirEventJobRun bDirEventJobEnd; do
+  if ! grep -q "$i" ${tmp}/test-plugin1.log; then
+    set_error "Failed to find logged event $i"
+  fi
+done
+
+for i in 1 2 3 4; do
+  num="$(grep -c -F "Job:'backup-nqrustbackup-fd$i." "${tmp}/test-plugin$i.log")"
+  if [ $num -ne 4 ]; then
+    set_error "Mismatched job context on plugin event in backup-nqrustbackup-fd$i"
+  fi
+done
+
+end_test

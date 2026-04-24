@@ -1,0 +1,53 @@
+FileSet {
+  Name = "fileset-multi-options"
+  Include {
+
+     Options {
+        Signature   = MD5
+        Wilddir     = @tmpdir@/data-multi-options/*1
+        Wild        = @tmpdir@/data-multi-options/*1/*
+     }
+     Options {
+        Signature   = MD5
+        Compression = GZIP
+        Wilddir     = @tmpdir@/data-multi-options/*2
+        Wild        = @tmpdir@/data-multi-options/*2/*
+     }
+     Options {
+        Signature   = MD5
+        Compression = GZIP9
+        Wilddir     = @tmpdir@/data-multi-options/*3
+        Wild        = @tmpdir@/data-multi-options/*3/*
+     }
+     Options {
+        Signature   = SHA1
+        Compression = LZO
+        Wilddir     = @tmpdir@/data-multi-options/*4
+        Wild        = @tmpdir@/data-multi-options/*4/*
+     }
+     Options {
+        Signature   = SHA256
+        Compression = LZ4
+        Wilddir     = @tmpdir@/data-multi-options/*5
+        Wild        = @tmpdir@/data-multi-options/*5/*
+     }
+     Options {
+        Signature   = SHA512
+        Compression = LZ4HC
+        Wilddir     = @tmpdir@/data-multi-options/*6
+        Wild        = @tmpdir@/data-multi-options/*6/*
+     }
+     Options {
+        Signature   = XXH128
+        Compression = LZ4
+        Wilddir     = @tmpdir@/data-multi-options/*7
+        Wild        = @tmpdir@/data-multi-options/*7/*
+     }
+     Options {
+        Exclude     = yes
+        Wilddir     = @tmpdir@/data-multi-options/*
+     }
+
+     File=@tmpdir@/data-multi-options/
+  }
+}

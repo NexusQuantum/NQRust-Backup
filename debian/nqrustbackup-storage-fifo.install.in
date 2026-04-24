@@ -1,0 +1,3 @@
+@backenddir@/libnqrustbackupsd-fifo.so*
+@configtemplatedir@/nqrustbackup-dir.d/storage/NULL.conf.example
+@configtemplatedir@/nqrustbackup-sd.d/device/NULL.conf.example

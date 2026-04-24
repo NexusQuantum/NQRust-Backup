@@ -1,0 +1,12 @@
+#
+# NQRustBackup User Agent (or Console) Configuration File
+#
+
+Director {
+  Name = @basename@-dir
+  Port = @dir_port@
+  Address = @hostname@
+  Password = "@dir_password@"
+
+  Tls Cipher Suites = "TLS_AES_128_CCM_8_SHA256"
+}

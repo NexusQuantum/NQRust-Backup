@@ -1,0 +1,36 @@
+#
+# Copyright (C) 2013-2023 NQRustBackup GmbH & Co. KG
+# Copyright (c) 2011 Free Software Foundation Europe e.V., Author: Bruno Friedmann
+#
+[Unit]
+Description=NQRustBackup File Daemon service
+Documentation=man:nqrustbackup-fd(8)
+Requires=network.target nss-lookup.target time-sync.target
+After=network-online.target nss-lookup.target local-fs.target remote-fs.target time-sync.target
+# Check if working dir exist
+ConditionPathExists=@working_dir@
+# Limit the number of restart per day
+StartLimitIntervalSec=1d
+
+[Service]
+Type=simple
+User=@fd_user@
+Group=@fd_group@
+WorkingDirectory=@working_dir@
+ExecStart=@sbindir@/nqrustbackup-fd -f
+SuccessExitStatus=0 15
+# IOSchedulingClass=idle
+# Increase the maximum number of open file descriptors
+LimitNOFILE=8192:524288
+# Restart on failure, wait 30 seconds
+Restart=on-failure
+RestartSec=30
+# Limit the number of restart to 10. to reset counter use systemctl reset-failed nqrustbackup-filedaemon
+StartLimitBurst=10
+# Don't restart on wrong exec arguments and configuration errors.
+RestartPreventExitStatus=41 42
+
+
+[Install]
+Alias=nqrustbackup-fd.service
+WantedBy=multi-user.target

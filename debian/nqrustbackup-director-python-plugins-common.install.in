@@ -1,0 +1,3 @@
+@plugindir@/NQRustBackupDirWrapper.py*
+@plugindir@/NQRustBackupDirPluginBaseclass.py*
+@plugindir@/nqrustbackup-dir-class-plugin.py*

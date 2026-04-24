@@ -1,0 +1,73 @@
+#! /bin/bash
+#
+# nqrustbackup-ctl-dir This shell script takes care of starting and stopping
+#		 the NQRustBackup Director daemon
+#
+# description: Backup Archiving REcovery Open Sourced.
+#
+
+export PSCMD="@PSCMD@"
+export PS="ps"
+export AWK="@AWK@"
+export PIDOF="@PIDOF@"
+export PGREP="@PGREP@"
+
+NQRUSTBACKUP_DIRECTOR_BINARY="${NQRUSTBACKUP_DIRECTOR_BINARY:-@sbindir@/nqrustbackup-dir}"
+export NQRUSTBACKUP_CONFIG_DIR=${NQRUSTBACKUP_CONFIG_DIR:-@confdir@}
+NQRUSTBACKUP_DIRECTOR_PORT=${NQRUSTBACKUP_DIRECTOR_PORT:-@dir_port@}
+NQRUSTBACKUP_SCRIPTS_DIR=${NQRUSTBACKUP_SCRIPTS_DIR:-@scriptdir@}
+
+#
+# Source the generic functions.
+#
+. "${NQRUSTBACKUP_SCRIPTS_DIR}/nqrustbackup-ctl-funcs"
+
+case "$1" in
+  start)
+    if [ -x "${NQRUSTBACKUP_DIRECTOR_BINARY}" ]; then
+      echo "Starting the NQRustBackup Director daemon"
+      OPTIONS=''
+      if [ "${NQRUSTBACKUP_CONFIG_DIR}" != '' ]; then
+        OPTIONS="${OPTIONS} -c ${NQRUSTBACKUP_CONFIG_DIR}"
+      fi
+
+      check_database dir ${NQRUSTBACKUP_DIRECTOR_BINARY} $2 $3 ${OPTIONS} || exit $?
+      check_config dir ${NQRUSTBACKUP_DIRECTOR_BINARY} $2 $3 ${OPTIONS} || exit $?
+      "${NQRUSTBACKUP_DIRECTOR_BINARY}" -v $2 $3 ${OPTIONS}
+    else
+      echo "${NQRUSTBACKUP_DIRECTOR_BINARY} not executable. Did you forget to build?" >&2
+      exit 1
+    fi
+    ;;
+
+  stop)
+    if [ -x "${NQRUSTBACKUP_DIRECTOR_BINARY}" ]; then
+      printf "Stopping the NQRustBackup Director daemon: "
+      shift # shift away the stop
+      killproc "${NQRUSTBACKUP_DIRECTOR_BINARY}" "${NQRUSTBACKUP_DIRECTOR_PORT}" "${@}"
+    fi
+    ;;
+
+  restart)
+    $0 stop
+    sleep 5
+    $0 start
+    ;;
+
+  status)
+    if [ -x "${NQRUSTBACKUP_DIRECTOR_BINARY}" ]; then
+      status "${NQRUSTBACKUP_DIRECTOR_BINARY}" "${NQRUSTBACKUP_DIRECTOR_PORT}"
+      exit $?
+    else
+      echo "${NQRUSTBACKUP_DIRECTOR_BINARY} not executable. Did you forget to build?" >&2
+      exit 1
+    fi
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
+
+exit 0

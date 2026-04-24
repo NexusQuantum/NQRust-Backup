@@ -1,0 +1,35 @@
+# FD Option Plugin stub 
+Sample for an option plugin. The method handle_backup_file gets called for each file in the backup, you can use this
+as template for your option plugin to implement some extra action on files.
+
+## Prerequisites
+You need the package `nqrustbackup-filedaemon-python-plugin` installed on your client.
+
+## Configuration
+
+### Activate your plugin directory in the fd resource conf on the client
+```
+Client {                          
+  Name = client-fd
+  ...
+  Plugin Directory = /usr/lib64/nqrustbackup/plugins
+}
+```
+
+### Include the Plugin in the fileset / option  definition on the director
+```
+FileSet {
+    Name = "client-data"
+       Include  {
+                Options {
+                        Signature = XXH128
+                        Compression = LZ4
+                        Plugin = "python:"
+                                 "module_path=/usr/lib64/nqrustbackup/plugins:"
+                                 "module_name=nqrustbackup_option_example"
+                }
+                File = /etc
+                #...
+        }
+}
+```

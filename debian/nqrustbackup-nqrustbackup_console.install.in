@@ -1,0 +1,4 @@
+@configtemplatedir@/nqrustbackup_console.conf
+/usr/bin/nqrustbackup_console
+/usr/sbin/nqrustbackup_console
+/usr/share/man/man1/nqrustbackup_console.1*

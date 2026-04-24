@@ -1,0 +1,118 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+# Fill ${BackupDirectory} with data.
+setup_data
+
+# With this test we try to summon some of the forgotten options that are not
+# used in other systemtests.
+
+jobname=backup-nqrustbackup-fd
+
+start_test
+
+#Testing that -u and -g do not cause problems
+usergroup_dir_log="${tmp}"/usergroup_dir_log.out
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-dir start "-u randomuser -g randomgroup -d 100" >"$usergroup_dir_log"
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-dir stop
+
+usergroup_fd_log="${tmp}"/usergroup_fd_log.out
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-fd start "-u randomuser -g randomgroup -d 100" >"$usergroup_fd_log"
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-fd stop
+
+usergroup_sd_log="${tmp}"/usergroup_sd_log.out
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-sd start "-u randomuser -g randomgroup -d 100" >"$usergroup_sd_log"
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-sd stop
+
+#Testing the creation and deletion of pid files with -p
+pid_file="${tmp}"/pid_file.out
+
+# Director
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-dir start "-p ${pid_file} -d 100" && sleep 5
+
+if [ ! -s "${pid_file}" ]; then
+  echo "Pid file was not written."
+  estat=1
+fi
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-dir stop
+
+if [ -s "${pid_file}" ]; then
+  echo "Pid file was not removed."
+  estat=2
+fi
+
+# Client
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-fd start "-p ${pid_file} -d 100" && sleep 5
+
+if [ ! -s "${pid_file}" ]; then
+  echo "Pid file was not written."
+  estat=3
+fi
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-fd stop
+
+if [ -s "${pid_file}" ]; then
+  echo "Pid file was not removed."
+  estat=4
+fi
+
+# Storage
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-sd start "-p ${pid_file} -d 100" && sleep 5
+
+if [ ! -s "${pid_file}" ]; then
+  echo "Pid file was not written."
+  estat=5
+fi
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/nqrustbackup-ctl-sd stop
+
+if [ -s "${pid_file}" ]; then
+  echo "Pid file was not removed."
+  estat=6
+fi
+
+if [ "$(whoami)" != "root" ]; then
+  expect_grep "The commandline options indicate to run as specified user/group" \
+    "$usergroup_dir_log" \
+    "Error parsing user or group options in director daemon."
+
+  expect_grep "The commandline options indicate to run as specified user/group" \
+    "$usergroup_fd_log" \
+    "Error parsing user or group options in file daemon."
+
+  expect_grep "The commandline options indicate to run as specified user/group" \
+    "$usergroup_sd_log" \
+    "Error parsing user or group options in storage daemon."
+
+else
+  expect_grep "Could not find userid=randomuser" \
+    "$usergroup_dir_log" \
+    "Error parsing user or group options in director daemon with root privileges."
+
+  expect_grep "Could not find userid=randomuser" \
+    "$usergroup_fd_log" \
+    "Error parsing user or group options in file daemon with root privileges."
+
+  expect_grep "Could not find userid=randomuser" \
+    "$usergroup_sd_log" \
+    "Error parsing user or group options in storage daemon with root privileges."
+fi
+
+end_test

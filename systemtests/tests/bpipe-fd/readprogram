@@ -1,0 +1,14 @@
+#!/bin/bash
+
+read_program_env_file="tmp/readprogram.$NQRustBackupJobLevel.env"
+
+{
+  # output environment variables from readprogram
+  echo "# Environment variables from read-program:"
+  echo "NQRustBackupClientName='$NQRustBackupClientName'"
+  echo "NQRustBackupJobId='$NQRustBackupJobId'"
+  echo "NQRustBackupJobLevel='$NQRustBackupJobLevel'"
+  echo "NQRustBackupSinceTime='$NQRustBackupSinceTime'"
+  echo "NQRustBackupJobType='$NQRustBackupJobType'"
+  echo "my_env_variable='$my_env_variable'"
+} > "$read_program_env_file"

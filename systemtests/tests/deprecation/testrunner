@@ -1,0 +1,58 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# Run a simple backup
+#   then restore it.
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+invoke_dir()
+{
+  options=("$@")
+  if [ -n "${NQRUSTBACKUP_DIRECTOR_USER:-}" ]; then
+    options+=(-u "${NQRUSTBACKUP_DIRECTOR_USER}")
+  fi
+  if [ -n "${NQRUSTBACKUP_DIRECTOR_GROUP:-}" ]; then
+    options+=(-g "${NQRUSTBACKUP_DIRECTOR_GROUP}")
+  fi
+  if [ -n "${NQRUSTBACKUP_CONFIG_DIR:-}" ]; then
+    options+=(-c "${NQRUSTBACKUP_CONFIG_DIR}")
+  fi
+  "${NQRUSTBACKUP_DIRECTOR_BINARY}" "${options[@]}"
+}
+invoke_sd()
+{
+  options=("$@")
+  if [ -n "${NQRUSTBACKUP_SD_USER:-}" ]; then
+    options+=(-u "${NQRUSTBACKUP_SD_USER}")
+  fi
+  if [ -n "${NQRUSTBACKUP_SD_GROUP:-}" ]; then
+    options+=(-g "${NQRUSTBACKUP_SD_GROUP}")
+  fi
+  if [ -n "${NQRUSTBACKUP_CONFIG_DIR:-}" ]; then
+    options+=(-c "${NQRUSTBACKUP_CONFIG_DIR}")
+  fi
+  "${NQRUSTBACKUP_STORAGEDAEMON_BINARY}" "${options[@]}"
+}
+
+start_test
+
+# check for deprecated database if applicable
+if [ "$DBTYPE" = mysql ] || [ "$DBTYPE" = sqlite3 ]; then
+  echo "Checking catalog backend deprecation"
+  invoke_dir -t -v 2>&1 \
+    | grep "Deprecated DB driver ${DBTYPE} for Catalog MyCatalog"
+fi
+
+end_test

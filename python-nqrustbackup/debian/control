@@ -1,0 +1,13 @@
+Source: python-nqrustbackup
+Maintainer: NQRustBackup Team <packager@nqrustbackup.com>
+Section: python
+Priority: optional
+Build-Depends: debhelper (>= 7.4.3), dh-python, python3-all, python3-setuptools
+Standards-Version: 3.9.1
+
+Package: python3-nqrustbackup
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends}, python3-configargparse
+Description: Backup Archiving REcovery Open Sourced - python module (Python 3)
+ This package contains a python module to interact with a NQRustBackup backup system.
+ It also includes some tools based on this module.

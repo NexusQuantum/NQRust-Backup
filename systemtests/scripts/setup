@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+. "${NQRUSTBACKUP_SCRIPTS_DIR}/functions"
+
+print_debug "drop database \"${db_name}\""
+"${NQRUSTBACKUP_SCRIPTS_DIR}/drop_nqrustbackup_database" 2>&1 >/dev/null \
+  || echo "info: ${NQRUSTBACKUP_SCRIPTS_DIR}/drop_nqrustbackup_database failed"
+
+print_debug "creating database \"${db_name}\""
+"${NQRUSTBACKUP_SCRIPTS_DIR}/create_nqrustbackup_database" 2>&1 >/dev/null
+
+print_debug "making tables  \"${db_name}\""
+"${NQRUSTBACKUP_SCRIPTS_DIR}/make_nqrustbackup_tables" 2>&1 >/dev/null
+
+print_debug "granting privileges database \"${db_name}\""
+"${NQRUSTBACKUP_SCRIPTS_DIR}/grant_nqrustbackup_privileges" 2>&1 >/dev/null \
+  || echo "info: ${NQRUSTBACKUP_SCRIPTS_DIR}/grant_nqrustbackup_privileges failed"
+
+if lsof="$(command -v lsof)"; then
+  for port in $BASEPORT $NQRUSTBACKUP_DIRECTOR_PORT $NQRUSTBACKUP_STORAGE_PORT \
+    $NQRUSTBACKUP_STORAGE2_PORT $NQRUSTBACKUP_FD_PORT $MINIO_PORT; do
+    if pid=$("${lsof}" -ti "tcp:$port"); then
+      print_debug "Killing process listening on $port with PID $pid"
+      kill -9 "$pid"
+    fi
+  done
+fi
+exit 0

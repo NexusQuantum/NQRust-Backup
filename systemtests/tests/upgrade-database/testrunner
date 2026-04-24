@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+JobName=backup-nqrustbackup-fd
+
+#shellcheck source=../../environment.in
+. ./environment
+
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/cleanup
+
+# use our creates sql statements for the old database
+export SQL_DDL_DIR="${current_test_directory}/nqrustbackup_15_db_2004_ddl"
+"${NQRUSTBACKUP_SCRIPTS_DIR}"/setup
+
+# use the default ddl directory with the current sql definitions
+unset SQL_DDL_DIR
+
+"${NQRUSTBACKUP_SCRIPTS_DIR}/update_nqrustbackup_tables" -f

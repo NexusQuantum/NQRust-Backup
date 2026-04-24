@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# Run a simple backup
+#   then restore it.
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+
+JobName=nqrustbackup_console-dotstatus
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+start_test
+rm -f "$tmp/log2.out"
+
+cat <<END_OF_DATA >$tmp/bconcmds
+@$out ${NULL_DEV}
+messages
+@$out $tmp/log1.out
+.jobstatus
+
+@$out $tmp/log2.out
+messages
+quit
+END_OF_DATA
+
+# Start the nqrustbackup daemons
+# and run the nqrustbackup_console commands from ${tmp}/bconcmds
+# Further nqrustbackup_console commands can be executed by "run_nqrustbackup_console".
+run_nqrustbackup_console
+
+# if log2.out has not been written, nqrustbackup_console crashed or disconnected
+# after .jobstatus command
+test -f "$tmp/log2.out" || exit 2
+
+end_test

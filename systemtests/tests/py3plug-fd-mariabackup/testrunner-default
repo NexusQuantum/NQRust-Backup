@@ -1,0 +1,154 @@
+#!/bin/bash
+set -e
+set -o pipefail
+set -u
+#
+# This systemtest tests the mariadb plugin functionality
+# of the NQRustBackup FD by using the supplied module
+# nqrustbackup-fd-mariabackup.py
+#
+TestName="$(basename "$(pwd)")"
+export TestName
+
+#shellcheck source=../../environment.in
+. ./environment
+#shellcheck source=../../scripts/functions
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/functions
+
+skip_if_root
+
+JobName=backup-nqrustbackup-fd
+MARIABACKUP="${MARIADB_BACKUP_BINARY} --defaults-file=mariadbdefaults"
+mariabackup_test_db="${db_name}_mariabackup"
+
+#shellcheck source=../../scripts/mariadb.sh
+. "${NQRUSTBACKUP_SCRIPTS_DIR}"/mariadb.sh
+
+mariadb_init
+mariadb_server_start
+
+echo "create database ${mariabackup_test_db}" | ${MARIADB_CLIENT}
+echo "CREATE TABLE test ( id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, data VARCHAR(100), created TIMESTAMP DEFAULT NOW())  " | ${MARIADB_CLIENT} "${mariabackup_test_db}"
+echo "insert into test (data) VALUES ('test entry 1') " | ${MARIADB_CLIENT} "${mariabackup_test_db}"
+
+# TODO test job failed when Accurate is On
+
+start_test
+
+cat <<END_OF_DATA1 >"${tmp}/bconcmds"
+@$out ${tmp}/log1.out
+setdebug level=150 trace=1 timestamp=1 client=nqrustbackup-fd
+run job=${JobName} yes
+wait JobName=${JobName}
+status dir
+wait
+messages
+quit
+END_OF_DATA1
+echo "Run first Full job"
+run_nqrustbackup_console
+expect_grep "Backup OK" "${tmp}/log1.out" "Backup OK for Full not found in job log"
+if [ ${estat} -ne 0 ]; then
+  exit ${estat}
+fi
+
+# insert data and run incremental
+${MARIADB_CLIENT} "${mariabackup_test_db}" <<<"insert into test (data) VALUES ('test entry 2')"
+
+cat <<END_OF_DATA2 >"${tmp}/bconcmds"
+@$out ${tmp}/log2.out
+@# run incremental with new data
+run job=$JobName level=Incremental yes
+wait JobName=$JobName
+status dir
+wait
+messages
+quit
+END_OF_DATA2
+echo "Run first incremental job"
+run_nqrustbackup_console
+
+expect_grep "Backup OK" "${tmp}/log2.out" "Backup OK for incremental not found in job log"
+if [ ${estat} -ne 0 ]; then
+  exit ${estat}
+fi
+
+cat <<END_OF_DATA3 >"$tmp/bconcmds"
+@$out ${tmp}/log3.out
+@# run incremental again without any new data
+run job=${JobName} yes
+wait JobName=${JobName}
+status dir
+wait
+messages
+quit
+END_OF_DATA3
+echo "Run second empty incremental job"
+run_nqrustbackup_console
+
+expect_grep "Backup OK" "${tmp}/log3.out" "Backup OK for empty incremental not found in job log"
+if [ ${estat} -ne 0 ]; then
+  exit ${estat}
+fi
+
+cat <<END_OF_DATA4 >"$tmp/bconcmds"
+@$out ${tmp}/log4.out
+restore client=nqrustbackup-fd fileset=MariabackupTest yes restorejob=RestoreFile select all done
+wait
+status dir
+wait
+messages
+quit
+END_OF_DATA4
+echo "Run restore job"
+run_nqrustbackup_console
+
+expect_grep "Restore OK" "${tmp}/log4.out" "Restore OK not found in job log"
+if [ ${estat} -ne 0 ]; then
+  exit ${estat}
+fi
+
+# Check if mariabackup has extracted some files at least
+# TODO: verify that mariabackup --prepare works and eventually do complete database restore
+ls -lR "${tmp}/nqrustbackup-restores/_mariadb-backup/"
+if [ -z "$(ls -A "${tmp}"/nqrustbackup-restores/_mariadb-backup/)" ]; then
+  echo "No restore data found"
+  estat=1
+fi
+
+mariadb_server_stop
+
+# create new empty data dir
+rm -Rf mariadb/data/*
+mkdir -p mariadb/data/
+
+TARGETDIR=$(find ./tmp/nqrustbackup-restores/_mariadb-backup/4/ -type d -name '*001')
+INCDIR1=$(find ./tmp/nqrustbackup-restores/_mariadb-backup/4/ -type d -name '*002')
+INCDIR2=$(find ./tmp/nqrustbackup-restores/_mariadb-backup/4/ -type d -name '*003')
+
+# First, prepare the base backup:
+${MARIABACKUP} --prepare --target-dir="${TARGETDIR}"
+# Then, apply the incremental changes to the base full backup:
+${MARIABACKUP} --prepare --target-dir="${TARGETDIR}" --incremental-dir="${INCDIR1}"
+# after prepare a file is left in data dir, this seems to be a bug
+rm -Rvf mariadb/data/*
+# Finally transfer the restore
+${MARIABACKUP} --copy-back --target-dir="${TARGETDIR}"
+
+mariadb_server_start
+
+if ! echo "SELECT * from test " | ${MARIADB_CLIENT} "${mariabackup_test_db}" | grep "test entry 1"; then
+  echo "test entry 1 not found"
+  estat=2
+fi
+
+if ! echo "SELECT * from test " | ${MARIADB_CLIENT} "${mariabackup_test_db}" | grep "test entry 2"; then
+  echo "test entry 2 not found"
+  estat=3
+fi
+
+check_for_zombie_jobs storage=File
+
+mariadb_server_stop
+
+end_test

@@ -1,0 +1,14 @@
+FileSet {
+  Name = "PluginTest"
+  Description = "Test the Plugin functionality with a Python Plugin."
+  Include {
+    Options {
+      Signature = XXH128
+    }
+    Plugin = "@dir_python_module_name@"
+             ":module_path=@python_plugin_module_src_test_dir@"
+             ":module_name=nqrustbackup-fd-libcloud"
+             ":config_file=etc/libcloud_config.ini"
+             ":buckets_include=nqrustbackup-test"
+  }
+}

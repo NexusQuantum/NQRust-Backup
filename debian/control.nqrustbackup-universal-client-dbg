@@ -1,0 +1,13 @@
+Package: nqrustbackup-universal-client-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends:
+    nqrustbackup-universal-client (= ${binary:Version}),
+    ${misc:Depends}
+Conflicts: bacula-sd-dbg, bacula-sd-mysql-dbg, bacula-sd-pgsql-dbg, bacula-sd-sqlite3-dbg
+Description: Backup Archiving Recovery Open Sourced - debugging symbols
+ NQRustBackup is a set of programs to manage backup, recovery and verification of
+ data across a network of computers of different kinds.
+ .
+ This package provides debugging symbols for NQRustBackup.

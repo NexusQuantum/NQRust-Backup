@@ -1,0 +1,6 @@
+@configtemplatedir@/nqrustbackup-dir.d/console/admin.conf.example
+@configtemplatedir@/nqrustbackup-dir.d/profile/webui-limited.conf.example
+/etc/apache2/conf-available/nqrustbackup-webui.conf
+/etc/nqrustbackup-webui/directors.ini
+/etc/nqrustbackup-webui/configuration.ini
+/usr/share/nqrustbackup-webui

@@ -1,0 +1,162 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (C) 2013-2025 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+namespace Pool\Controller;
+
+use Laminas\Mvc\Controller\AbstractActionController;
+use Laminas\View\Model\ViewModel;
+use Exception;
+
+class PoolController extends AbstractActionController
+{
+    /**
+     * Variables
+     */
+    protected $poolModel = null;
+    protected $bsock = null;
+    protected $acl_alert = false;
+
+    /**
+     * Get Index Action
+     *
+     * @return object
+     */
+    public function indexAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Pool']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        try {
+            $this->bsock = $this->getServiceLocator()->get('director');
+            $pools = $this->getPoolModel()->getPools($this->bsock);
+            $this->bsock->disconnect();
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        return new ViewModel(
+            array(
+                'pools' => $pools,
+            )
+        );
+    }
+
+    /**
+     * Get Details Action
+     *
+     * @return object
+     */
+    public function detailsAction()
+    {
+        $this->RequestURIPlugin()->setRequestURI();
+
+        if (!$this->SessionTimeoutPlugin()->isValid()) {
+            return $this->redirect()->toRoute(
+                'auth',
+                array(
+                    'action' => 'login'
+                ),
+                array(
+                    'query' => array(
+                        'req' => $this->RequestURIPlugin()->getRequestURI(),
+                        'dird' => $_SESSION['nqrustbackup']['director']
+                    )
+                )
+            );
+        }
+
+        $module_config = $this->getServiceLocator()->get('ModuleManager')->getModule('Application')->getConfig();
+        $invalid_commands = $this->CommandACLPlugin()->getInvalidCommands(
+            $module_config['console_commands']['Pool']['mandatory']
+        );
+        if (count($invalid_commands) > 0) {
+            $this->acl_alert = true;
+            return new ViewModel(
+                array(
+                    'acl_alert' => $this->acl_alert,
+                    'invalid_commands' => implode(",", $invalid_commands)
+                )
+            );
+        }
+
+        $poolname = $this->params()->fromQuery('pool');
+
+        try {
+            $this->bsock = $this->getServiceLocator()->get('director');
+            $pool = $this->getPoolModel()->getPool($this->bsock, $poolname);
+            $this->bsock->disconnect();
+        } catch (Exception $e) {
+            echo $e->getMessage();
+        }
+
+        return new ViewModel(
+            array(
+                'pool' => $poolname,
+            )
+        );
+    }
+
+    /**
+     * Get Pool Model
+     *
+     * @return object
+     */
+    public function getPoolModel()
+    {
+        if (!$this->poolModel) {
+            $sm = $this->getServiceLocator();
+            $this->poolModel = $sm->get('Pool\Model\PoolModel');
+        }
+        return $this->poolModel;
+    }
+}

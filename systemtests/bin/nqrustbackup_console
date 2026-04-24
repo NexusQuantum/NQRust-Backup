@@ -1,0 +1,6 @@
+#!/bin/bash
+# wrapper script to start/stop nqrustbackup_console for each individual test
+#shellcheck source=../environment.in
+. ./environment
+
+"${NQRUSTBACKUP_NQRUSTBACKUP_CONSOLE_BINARY}" -c "${NQRUSTBACKUP_CONFIG_DIR}" "$@"

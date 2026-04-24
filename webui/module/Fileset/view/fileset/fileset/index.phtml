@@ -1,0 +1,127 @@
+<?php
+
+/**
+ *
+ * nqrustbackup-webui - NQRust Backup Web Console
+ *
+ * @link      https://github.com/nqrustbackup/nqrustbackup for the canonical source repository
+ * @copyright Copyright (c) 2013-2019 NQRustBackup GmbH & Co. KG (http://www.nqrustbackup.org/)
+ * @license   GNU Affero General Public License (http://www.gnu.org/licenses/)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+$title = _('Filesets');
+$this->headTitle($title);
+
+?>
+
+<?php if($this->acl_alert) : echo $this->ACLAlert($this->invalid_commands); elseif(!$this->acl_alert) : ?>
+
+<div class="row">
+<div class="col-md-12">
+<div class="panel panel-default">
+
+<div class="panel-heading">
+<h3 class="panel-title"><?php echo $this->translate("Filesets"); ?></h3>
+</div>
+
+<div class="panel-body">
+   <div class="nq-empty-state nq-fileset-intro">
+      <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>
+      <div>
+         <strong><?php echo $this->translate("Backup file definitions"); ?></strong>
+         <p><?php echo $this->translate("Review the configured filesets used by backup jobs and open a definition for full details."); ?></p>
+      </div>
+   </div>
+
+   <table class="table table-no-bordered table-hover"
+      id="filesettable"
+      data-toolbar="#fileset-table-toolbar">
+   </table>
+</div>
+
+</div>
+</div>
+</div>
+
+<?php endif; ?>
+
+<?php
+   echo $this->headScript()->prependFile($this->basePath() . '/js/custom-functions.js');
+   echo $this->headLink()->prependStylesheet($this->basePath() . '/css/bootstrap-table.min.css');
+   echo $this->headScript()->prependFile($this->basePath() . '/js/bootstrap-table-formatter.js');
+   echo $this->headScript()->prependFile($this->basePath() . '/js/bootstrap-table-locale-all.min.js');
+   echo $this->headScript()->prependFile($this->basePath() . '/js/bootstrap-table-cookie.min.js');
+   echo $this->headScript()->prependFile($this->basePath() . '/js/bootstrap-table.min.js');
+?>
+
+<script>
+
+   function filesetActionFormatter(value, row) {
+      var detailsUrl = '<?php echo $this->url('fileset', array('action' => 'details'), array()); ?>/' + row.filesetid;
+      return '<a class="btn btn-default btn-xs" href="' + detailsUrl + '" title="<?php echo $this->translate("Show"); ?>"><span class="glyphicon glyphicon-search" aria-hidden="true"></span></a>';
+   }
+
+   $(document).ready(function() {
+      setDtTextDomain('<?php echo $this->basePath() . '/js/locale'; ?>');
+      setDtLocale('<?php echo $_SESSION['nqrustbackup']['locale']; ?>');
+
+      $('#filesettable').bootstrapTable({
+         locale: '<?php echo str_replace('_','-', $_SESSION['nqrustbackup']['locale']); ?>',
+         url: '<?php echo $this->url('api/fileset', array(), array()); ?>',
+         method: 'get',
+         dataType: 'json',
+         search: true,
+         pagination: true,
+         showRefresh: true,
+         showColumns: true,
+         minimumCountColumns: 2,
+         uniqueId: 'filesetid',
+         sortName: 'fileset',
+         sortOrder: 'asc',
+         columns: [
+            {
+               field: 'filesetid',
+               title: '<?php echo $this->translate("Id"); ?>',
+               sortable: true,
+               width: '90'
+            },
+            {
+               field: 'fileset',
+               title: '<?php echo $this->translate("Name"); ?>',
+               sortable: true
+            },
+            {
+               field: 'md5',
+               title: '<?php echo $this->translate("MD5 checksum"); ?>',
+               sortable: true
+            },
+            {
+               field: 'createtime',
+               title: '<?php echo $this->translate("Creation time"); ?>',
+               sortable: true
+            },
+            {
+               field: 'actions',
+               title: '<?php echo $this->translate("Actions"); ?>',
+               align: 'center',
+               formatter: 'filesetActionFormatter'
+            }
+         ]
+      });
+   });
+
+</script>

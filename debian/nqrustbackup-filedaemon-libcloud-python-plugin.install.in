@@ -1,0 +1,4 @@
+@plugindir@/nqrustbackup-fd-libcloud.py*
+@plugindir@/NQRustBackupLibcloudApi.py
+@plugindir@/nqrustbackup_libcloud_api
+@plugindir@/nqrustbackup_libcloud_api/*
