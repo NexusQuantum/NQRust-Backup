@@ -82,10 +82,8 @@ pub async fn handle(app: &mut App, key: KeyEvent) {
             app.preflight =
                 preflight::run_all_checks(&app.config.config_dir, &app.config.storage_dir);
         }
-        KeyCode::Enter => {
-            if preflight::all_ok(&app.preflight) {
-                app.screen = Screen::SourceSelect;
-            }
+        KeyCode::Enter if preflight::all_ok(&app.preflight) => {
+            app.screen = Screen::SourceSelect;
         }
         _ => {}
     }

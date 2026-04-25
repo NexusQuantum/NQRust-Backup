@@ -1,5 +1,17 @@
 //! NQRustBackup installer — TUI entry point.
 
+// Stylistic clippy lints we deliberately don't chase — they shift between
+// stable rust versions and are not correctness issues. Prevents "build broken
+// by toolchain upgrade" surprises in CI.
+#![allow(
+    clippy::collapsible_if,
+    clippy::collapsible_match,
+    clippy::single_match,
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    clippy::module_inception
+)]
+
 mod app;
 mod installer;
 mod theme;
