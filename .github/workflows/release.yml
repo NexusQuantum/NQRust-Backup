@@ -115,24 +115,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Render CMake .in templates (no real template vars in webui phtml)
+        run: |
+          # The webui's view templates ship as .phtml AND .phtml.in in the
+          # repo, but .phtml is .gitignore'd because CMake generates it. The
+          # .phtml.in files have no @VAR@ tokens — just rename to render.
+          cd webui
+          find module -name '*.phtml.in' | while read -r f; do
+              cp "$f" "${f%.in}"
+          done
+          # Same for any other .in files that materialize 1:1.
+          [ -f version.php.in ] && cp version.php.in version.php || true
+
       - name: Pack webui/ as nqrustbackup-webui.tar.gz
         id: pack
         run: |
           NAME="nqrustbackup-webui.tar.gz"
-          # Exclude tests + cmake + .in template files (templates need CMake to render).
-          # Include everything that the apt-installed bareos-webui has at /usr/share/bareos-webui/.
           tar czf "$NAME" \
               -C webui \
               --exclude='./tests' \
               --exclude='./cmake' \
               --exclude='./CMakeLists.txt' \
-              --exclude='*.in' \
               --exclude='./LICENSE' \
               --exclude='./README.md' \
               --exclude='./copyright' \
               --exclude='./doc' \
               .
           ls -la "$NAME"
+          # Sanity: the tarball must contain the rebranded layout.phtml
+          if ! tar tzf "$NAME" | grep -q '^./module/Application/view/layout/layout.phtml$'; then
+              echo "ERROR: tarball missing module/Application/view/layout/layout.phtml" >&2
+              exit 1
+          fi
           sha256sum "$NAME" | tee "${NAME}.sha256"
           SHA=$(awk '{print $1}' "${NAME}.sha256")
           echo "name=$NAME" >> "$GITHUB_OUTPUT"

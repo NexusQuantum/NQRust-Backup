@@ -61,9 +61,48 @@ a2enmod "$mod"
     )
     .await?;
 
-    sudo_run_logged(&["a2enconf", "bareos-webui"], log, cfg.dry_run)
-        .await
-        .ok();
+    // The deb installs `/etc/apache2/conf-enabled/bareos-webui.conf` which
+    // aliases /bareos-webui to /usr/share/bareos-webui/public. The rebranded
+    // PHP code redirects users to /nqrustbackup-webui/, which Apache doesn't
+    // know about, so we swap the alias path. The same /usr/share/bareos-webui
+    // tree backs both URLs.
+    let webui_apache = r#"# NQRustBackup WebUI Apache configuration (installed by nqrustbackup-installer)
+<IfModule env_module>
+    SetEnv "APPLICATION_ENV" "production"
+</IfModule>
+
+# Primary URL (matches the rebranded PHP code's internal links).
+Alias /nqrustbackup-webui  /usr/share/bareos-webui/public
+
+# Backwards-compat: keep /bareos-webui working for old bookmarks.
+Alias /bareos-webui  /usr/share/bareos-webui/public
+
+<Directory /usr/share/bareos-webui/public>
+    Options FollowSymLinks
+    AllowOverride None
+    Require all granted
+
+    <IfModule mod_rewrite.c>
+        RewriteEngine on
+        RewriteBase /nqrustbackup-webui
+        RewriteCond %{REQUEST_FILENAME} -s [OR]
+        RewriteCond %{REQUEST_FILENAME} -l [OR]
+        RewriteCond %{REQUEST_FILENAME} -d
+        RewriteRule ^.*$ - [NC,L]
+        RewriteRule ^.*$ index.php [NC,L]
+    </IfModule>
+</Directory>
+"#;
+    let install_apache = format!(
+        r#"set -eu
+# Disable the deb's stock bareos-webui.conf (we ship our own).
+a2disconf bareos-webui 2>/dev/null || true
+cat > /etc/apache2/conf-available/nqrustbackup-webui.conf <<'__EOF__'
+{webui_apache}__EOF__
+a2enconf nqrustbackup-webui
+"#
+    );
+    sudo_run_logged(&["sh", "-c", &install_apache], log, cfg.dry_run).await?;
 
     // Make Apache listen on the chosen port.
     let port_setup = format!(
@@ -112,7 +151,7 @@ fi
         r#"<VirtualHost *:{port}>
   ServerName _
   DocumentRoot /var/www/html
-  RedirectMatch ^/$ /bareos-webui/
+  RedirectMatch ^/$ /nqrustbackup-webui/
   ErrorLog ${{APACHE_LOG_DIR}}/nqrustbackup-webui-error.log
   CustomLog ${{APACHE_LOG_DIR}}/nqrustbackup-webui-access.log combined
 </VirtualHost>
