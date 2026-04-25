@@ -1,6 +1,6 @@
 [package]
 name = "nqrustbackup-installer"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "NQRustBackup Installer — TUI for deploying the NQRustBackup server stack (Director + Storage + FileDaemon + Catalog + WebUI)"
 authors = ["NQRustBackup eval"]

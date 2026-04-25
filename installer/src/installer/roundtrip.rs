@@ -81,17 +81,21 @@ pub fn run(opts: &RoundtripOptions, log: &LogRing) -> Result<RoundtripReport> {
         opts.volume_name, opts.volume_pool
     ));
 
-    // 2. Run backup
-    log.push(LogLevel::Info, "running backup job…");
+    // 2. Run backup (forced Full so we always have something to restore)
+    log.push(LogLevel::Info, "running backup job (level=Full)…");
     let backup_t0 = std::time::Instant::now();
     let backup_out = bconsole(&format!(
-        "run job={} yes\nwait\nlist jobs\nquit\n",
+        "run job={} level=Full yes\nwait\nlist jobs\nquit\n",
         opts.job_name
     ))?;
     let backup_secs = backup_t0.elapsed().as_secs();
 
-    let backup_jobid = parse_jobid(&backup_out)
-        .ok_or_else(|| anyhow!("could not find JobId in bconsole output"))?;
+    let backup_jobid = parse_jobid(&backup_out).ok_or_else(|| {
+        anyhow!(
+            "could not find JobId in bconsole output. Raw output:\n{}",
+            backup_out
+        )
+    })?;
     log.push(LogLevel::Info, format!("backup jobid={backup_jobid}"));
 
     let (b_files, b_bytes, b_status) = job_stats(backup_jobid)?;
@@ -99,6 +103,13 @@ pub fn run(opts: &RoundtripOptions, log: &LogRing) -> Result<RoundtripReport> {
         bail!(
             "backup job {} terminated with status '{}' (expected 'T'). See `journalctl -u bareos-director`.",
             backup_jobid, b_status
+        );
+    }
+    if b_files == 0 {
+        bail!(
+            "backup job {backup_jobid} wrote 0 files — nothing to restore. \
+             (Even with level=Full forced, the FileSet appears empty.) \
+             Check `bconsole` -> `show fileset=SelfTest`."
         );
     }
     log.push(
@@ -119,8 +130,12 @@ pub fn run(opts: &RoundtripOptions, log: &LogRing) -> Result<RoundtripReport> {
         opts.restore_dir.display()
     ))?;
     let restore_secs = restore_t0.elapsed().as_secs();
-    let restore_jobid = parse_jobid(&restore_out)
-        .ok_or_else(|| anyhow!("could not find restore JobId in bconsole output"))?;
+    let restore_jobid = parse_jobid(&restore_out).ok_or_else(|| {
+        anyhow!(
+            "could not find restore JobId in bconsole output. Raw output:\n{}",
+            restore_out
+        )
+    })?;
     log.push(LogLevel::Info, format!("restore jobid={restore_jobid}"));
 
     let (r_files, r_bytes, r_status) = job_stats(restore_jobid)?;
