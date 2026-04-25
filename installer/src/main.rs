@@ -75,6 +75,26 @@ enum Commands {
         #[arg(long, value_enum, default_value = "all-in-one")]
         profile: CliProfile,
     },
+    /// Run an end-to-end backup + restore round-trip against an installed
+    /// NQRustBackup server. Uses the bundled `backup-bareos-fd` job, restores
+    /// to a temp dir, and SHA-256 spot-checks N restored files vs originals.
+    TestRoundtrip {
+        /// Job to run (default: bundled SelfTest fileset on bareos-fd)
+        #[arg(long, default_value = "backup-bareos-fd")]
+        job: String,
+        /// Pool to label new volume in
+        #[arg(long, default_value = "Full")]
+        pool: String,
+        /// Directory to restore into (auto-named under /tmp if unset)
+        #[arg(long)]
+        restore_dir: Option<PathBuf>,
+        /// Number of restored files to SHA-256 vs originals
+        #[arg(long, default_value = "10")]
+        samples: usize,
+        /// Don't delete the restore dir on success
+        #[arg(long)]
+        keep: bool,
+    },
 }
 
 #[derive(Copy, Clone, ValueEnum)]
@@ -137,6 +157,92 @@ async fn main() -> Result<()> {
                 dry_run,
             };
             run_headless(cfg).await
+        }
+        Commands::TestRoundtrip {
+            job,
+            pool,
+            restore_dir,
+            samples,
+            keep,
+        } => {
+            tracing_subscriber::fmt()
+                .with_env_filter(
+                    tracing_subscriber::EnvFilter::try_from_default_env()
+                        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+                )
+                .init();
+            let defaults = installer::roundtrip::RoundtripOptions::default();
+            let opts = installer::roundtrip::RoundtripOptions {
+                job_name: job,
+                volume_pool: pool,
+                restore_dir: restore_dir.unwrap_or(defaults.restore_dir),
+                samples,
+                keep_restore_dir: keep,
+                ..defaults
+            };
+            let log = app::LogRing::new(2000);
+            // Mirror logs to stdout for the CLI
+            let log_clone = log.clone();
+            std::thread::spawn(move || {
+                let mut last_seen = 0usize;
+                loop {
+                    let snap = log_clone.snapshot();
+                    if snap.len() > last_seen {
+                        for entry in &snap[last_seen..] {
+                            let (ts, lvl, msg) = entry;
+                            let tag = match lvl {
+                                app::LogLevel::Info => "INFO",
+                                app::LogLevel::Ok => "OK  ",
+                                app::LogLevel::Warn => "WARN",
+                                app::LogLevel::Err => "ERR ",
+                            };
+                            println!("{}  {tag}  {msg}", ts.format("%H:%M:%S"));
+                        }
+                        last_seen = snap.len();
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(120));
+                }
+            });
+            let report =
+                match tokio::task::spawn_blocking(move || installer::roundtrip::run(&opts, &log))
+                    .await?
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        eprintln!("\nROUND-TRIP FAILED: {e:#}");
+                        std::process::exit(1);
+                    }
+                };
+            // Tiny summary
+            println!();
+            println!("====================================================");
+            println!(
+                " Round-trip: {}",
+                if report.passed() { "PASS" } else { "FAIL" }
+            );
+            println!(
+                "   backup  jobid={} files={} bytes={} secs={}",
+                report.backup_jobid,
+                report.files_backed_up,
+                report.bytes_backed_up,
+                report.backup_secs
+            );
+            println!(
+                "   restore jobid={} files={} bytes={} secs={}",
+                report.restore_jobid,
+                report.files_restored,
+                report.bytes_restored,
+                report.restore_secs
+            );
+            println!(
+                "   sha256: {}/{} samples matched",
+                report.samples_matched, report.samples_checked
+            );
+            if report.passed() {
+                Ok(())
+            } else {
+                std::process::exit(2);
+            }
         }
         Commands::Plan { source, profile } => {
             let src: InstallSource = source.into();
