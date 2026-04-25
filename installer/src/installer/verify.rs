@@ -33,11 +33,14 @@ fn run_blocking(cfg: &InstallConfig, log: &LogRing) -> Result<Vec<PreflightCheck
     }
 
     if cfg.profile.installs_webui() {
-        let url = format!(
+        // Root should redirect to /bareos-webui/ (after v0.1.3 install)
+        let root = format!("http://{}:{}/", cfg.director_address, cfg.webui_port);
+        out.push(http_check("WebUI root (expect 301/302)", &root));
+        let app = format!(
             "http://{}:{}/bareos-webui/",
             cfg.director_address, cfg.webui_port
         );
-        out.push(http_check("WebUI HTTP", &url));
+        out.push(http_check("WebUI app (expect 200)", &app));
     }
 
     for c in &out {
