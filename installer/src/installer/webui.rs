@@ -75,14 +75,32 @@ fi
     );
     sudo_run_logged(&["sh", "-c", &port_setup], log, cfg.dry_run).await?;
 
-    // Activate the admin console (package ships .example).
+    // Write a known-good admin Console + ensure WebUI directors.ini has TLS off
+    // on both sides. The packaged admin.conf.example sets `TLS Enable = no`
+    // but we overwrite explicitly so a partial earlier install can't leave us
+    // with TLS-PSK enabled (which the PHP webui can't negotiate → login fails
+    // with "Sorry, cannot authenticate. Wrong username, password or SSL/TLS
+    // handshake failed.").
     let console_activate = r#"set -eu
-src=/etc/bareos/bareos-dir.d/console/admin.conf.example
-dst=/etc/bareos/bareos-dir.d/console/admin.conf
-if [ -f "$src" ] && [ ! -f "$dst" ]; then
-  cp "$src" "$dst"
-  chown root:bareos "$dst"
-  chmod 640 "$dst"
+cat > /etc/bareos/bareos-dir.d/console/admin.conf <<'__EOF__'
+Console {
+  Name = admin
+  Password = "admin"
+  Profile = "webui-admin"
+  TLS Enable = no
+}
+__EOF__
+chown root:bareos /etc/bareos/bareos-dir.d/console/admin.conf
+chmod 640 /etc/bareos/bareos-dir.d/console/admin.conf
+
+# WebUI side: harden directors.ini so the PHP client matches.
+DI=/etc/bareos-webui/directors.ini
+if [ -f "$DI" ]; then
+  # Comment out then re-add the keys we want, idempotently.
+  sed -i 's/^\(tls_verify_peer\)\s*=.*/\1 = false/; s/^\(enable_tls_psk\)\s*=.*/\1 = false/' "$DI"
+  # If the keys aren't present at all, append them under [localhost-dir] (default section name).
+  grep -q '^tls_verify_peer'  "$DI" || sed -i '/^\[localhost-dir\]/a tls_verify_peer = false' "$DI"
+  grep -q '^enable_tls_psk'   "$DI" || sed -i '/^\[localhost-dir\]/a enable_tls_psk = false' "$DI"
 fi
 "#;
     sudo_run_logged(&["sh", "-c", console_activate], log, cfg.dry_run).await?;
@@ -109,6 +127,18 @@ a2ensite nqrustbackup-webui
 "#
     );
     sudo_run_logged(&["sh", "-c", &install_redirect], log, cfg.dry_run).await?;
+
+    // Reload director so the new admin console resource is live for webui.
+    sudo_run_logged(
+        &[
+            "sh",
+            "-c",
+            "echo -e 'reload\nquit' | bconsole >/dev/null 2>&1 || systemctl restart bareos-director",
+        ],
+        log,
+        cfg.dry_run,
+    )
+    .await?;
 
     // Restart so the newly enabled php module + sites are picked up cleanly.
     sudo_run_logged(&["systemctl", "restart", "apache2"], log, cfg.dry_run).await?;
