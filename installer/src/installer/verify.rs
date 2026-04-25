@@ -55,9 +55,7 @@ fn run_blocking(cfg: &InstallConfig, log: &LogRing) -> Result<Vec<PreflightCheck
 }
 
 fn unit_active_check(unit: &str) -> PreflightCheck {
-    let out = Command::new("systemctl")
-        .args(["is-active", unit])
-        .output();
+    let out = Command::new("systemctl").args(["is-active", unit]).output();
     let (status, detail) = match out {
         Ok(o) => {
             let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
@@ -78,13 +76,24 @@ fn unit_active_check(unit: &str) -> PreflightCheck {
 
 fn catalog_check() -> PreflightCheck {
     let out = Command::new("sudo")
-        .args(["-u", "bareos", "psql", "-d", "bareos", "-tAc", "SELECT count(*) FROM version"])
+        .args([
+            "-u",
+            "bareos",
+            "psql",
+            "-d",
+            "bareos",
+            "-tAc",
+            "SELECT count(*) FROM version",
+        ])
         .output();
     match out {
         Ok(o) if o.status.success() => PreflightCheck {
             name: "Catalog reachable".into(),
             status: CheckStatus::Ok,
-            detail: format!("version rows: {}", String::from_utf8_lossy(&o.stdout).trim()),
+            detail: format!(
+                "version rows: {}",
+                String::from_utf8_lossy(&o.stdout).trim()
+            ),
         },
         Ok(o) => PreflightCheck {
             name: "Catalog reachable".into(),
@@ -138,7 +147,16 @@ fn bconsole_check() -> PreflightCheck {
 
 fn http_check(name: &str, url: &str) -> PreflightCheck {
     let out = Command::new("curl")
-        .args(["-sS", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", url])
+        .args([
+            "-sS",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code}",
+            "--max-time",
+            "5",
+            url,
+        ])
         .output();
     match out {
         Ok(o) if o.status.success() => {

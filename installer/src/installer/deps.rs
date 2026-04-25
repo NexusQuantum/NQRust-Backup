@@ -21,7 +21,9 @@ pub async fn install_apt_deps(log: &LogRing, dry_run: bool) -> Result<()> {
         if dry_run {
             return Ok(());
         }
-        bail!("apt-based install only supports Debian/Ubuntu. Try --dry-run or use BuildFromSource.");
+        bail!(
+            "apt-based install only supports Debian/Ubuntu. Try --dry-run or use BuildFromSource."
+        );
     }
 
     log.push(LogLevel::Info, "apt-get update");
@@ -101,7 +103,10 @@ dbconfig-common dbconfig-common/dbconfig-install boolean false
     log.push(LogLevel::Info, format!("installing: {}", pkgs.join(" ")));
 
     if dry_run {
-        log.push(LogLevel::Info, "(dry-run) would run apt-get install with preseed");
+        log.push(
+            LogLevel::Info,
+            "(dry-run) would run apt-get install with preseed",
+        );
         return Ok(());
     }
 

@@ -101,7 +101,11 @@ pub async fn render_and_install(cfg: &InstallConfig, log: &LogRing) -> Result<()
 }
 
 async fn install_file(log: &LogRing, dest: &str, content: &str, dry_run: bool) -> Result<()> {
-    let dir = Path::new(dest).parent().unwrap().to_string_lossy().to_string();
+    let dir = Path::new(dest)
+        .parent()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
     let script = format!(
         r#"set -eu
 mkdir -p '{dir}'

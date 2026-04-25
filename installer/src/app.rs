@@ -201,10 +201,12 @@ pub enum CheckStatus {
     Fail,
 }
 
+pub type LogEntry = (chrono::DateTime<chrono::Local>, LogLevel, String);
+
 /// Shared log ring passed to executor tasks; the Progress screen reads this.
 #[derive(Debug, Default, Clone)]
 pub struct LogRing {
-    pub inner: Arc<Mutex<Vec<(chrono::DateTime<chrono::Local>, LogLevel, String)>>>,
+    pub inner: Arc<Mutex<Vec<LogEntry>>>,
     pub max: usize,
 }
 
@@ -225,7 +227,7 @@ impl LogRing {
         }
     }
 
-    pub fn snapshot(&self) -> Vec<(chrono::DateTime<chrono::Local>, LogLevel, String)> {
+    pub fn snapshot(&self) -> Vec<LogEntry> {
         self.inner.lock().unwrap().clone()
     }
 }

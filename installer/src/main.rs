@@ -177,7 +177,10 @@ async fn run_headless(cfg: InstallConfig) -> Result<()> {
     println!();
     println!("Install complete. Verify at:");
     if cfg.profile.installs_webui() {
-        println!("  WebUI: http://{}:{}", cfg.director_address, cfg.webui_port);
+        println!(
+            "  WebUI: http://{}:{}",
+            cfg.director_address, cfg.webui_port
+        );
     }
     println!("  bconsole (on this host): `sudo bconsole`");
     Ok(())

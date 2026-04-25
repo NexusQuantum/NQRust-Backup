@@ -31,7 +31,11 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
 
     let v = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(1), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(1),
+            Constraint::Length(2),
+        ])
         .split(area);
 
     let done = phases_with_status
@@ -39,12 +43,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         .filter(|(_, s)| matches!(s, CheckStatus::Ok))
         .count();
     let total = phases_with_status.len();
-    let header = Paragraph::new(Line::from(vec![
-        Span::styled(
-            format!("Installing… phases complete: {done}/{total}"),
-            styles::text(),
-        ),
-    ]));
+    let header = Paragraph::new(Line::from(vec![Span::styled(
+        format!("Installing… phases complete: {done}/{total}"),
+        styles::text(),
+    )]));
     frame.render_widget(header, v[0]);
 
     let split = Layout::default()
@@ -87,9 +89,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
             Span::styled(" — verify", styles::muted()),
         ])
     } else {
-        Line::from(vec![
-            Span::styled("Please wait… logs stream on the right.", styles::muted()),
-        ])
+        Line::from(vec![Span::styled(
+            "Please wait… logs stream on the right.",
+            styles::muted(),
+        )])
     };
     frame.render_widget(Paragraph::new(hint), v[2]);
 }
@@ -109,11 +112,8 @@ pub async fn handle(app: &mut App, key: KeyEvent) {
         .phases
         .iter()
         .any(|(_, s)| matches!(s, CheckStatus::Fail));
-    let all_ok = !app.phases.is_empty()
-        && app
-            .phases
-            .iter()
-            .all(|(_, s)| matches!(s, CheckStatus::Ok));
+    let all_ok =
+        !app.phases.is_empty() && app.phases.iter().all(|(_, s)| matches!(s, CheckStatus::Ok));
 
     match key.code {
         KeyCode::Enter if any_fail => {

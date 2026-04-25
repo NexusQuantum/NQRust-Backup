@@ -105,7 +105,11 @@ pub fn run_all_checks(install_dir: &Path, storage_dir: &Path) -> Vec<PreflightCh
     });
 
     // Disk space
-    out.push(check_disk_space("Install dir writeable", install_dir, 2 * 1024));
+    out.push(check_disk_space(
+        "Install dir writeable",
+        install_dir,
+        2 * 1024,
+    ));
     out.push(check_disk_space(
         "Storage dir writeable",
         storage_dir,

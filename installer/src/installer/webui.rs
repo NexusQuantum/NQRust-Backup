@@ -25,13 +25,9 @@ pub async fn setup(cfg: &InstallConfig, log: &LogRing) -> Result<()> {
 
     // The bareos-webui package drops /etc/apache2/conf-available/bareos-webui.conf
     // and enables it via postinst. Make sure it's active.
-    sudo_run_logged(
-        &["a2enconf", "bareos-webui"],
-        log,
-        cfg.dry_run,
-    )
-    .await
-    .ok();
+    sudo_run_logged(&["a2enconf", "bareos-webui"], log, cfg.dry_run)
+        .await
+        .ok();
 
     // Some packages default apache to :9100 via /etc/apache2/ports.conf — otherwise
     // the webui sits at http://<host>/bareos-webui/ on :80.
@@ -57,12 +53,7 @@ fi
 "#;
     sudo_run_logged(&["sh", "-c", console_activate], log, cfg.dry_run).await?;
 
-    sudo_run_logged(
-        &["systemctl", "reload", "apache2"],
-        log,
-        cfg.dry_run,
-    )
-    .await?;
+    sudo_run_logged(&["systemctl", "reload", "apache2"], log, cfg.dry_run).await?;
 
     log.push(
         LogLevel::Ok,

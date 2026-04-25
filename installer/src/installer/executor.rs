@@ -155,10 +155,7 @@ pub async fn sudo_run_logged(cmd: &[&str], log: &LogRing, dry_run: bool) -> Resu
     }
 
     let (program, args) = build_sudo_cmd(cmd);
-    log.push(
-        LogLevel::Info,
-        format!("$ {} {}", program, args.join(" ")),
-    );
+    log.push(LogLevel::Info, format!("$ {} {}", program, args.join(" ")));
 
     let mut child = Command::new(program)
         .args(&args)
@@ -194,11 +191,7 @@ pub async fn sudo_run_logged(cmd: &[&str], log: &LogRing, dry_run: bool) -> Resu
     let _ = h_err.await;
 
     if !status.success() {
-        bail!(
-            "command failed with status {}: {}",
-            status,
-            render_cmd(cmd)
-        );
+        bail!("command failed with status {}: {}", status, render_cmd(cmd));
     }
     Ok(())
 }
@@ -241,10 +234,11 @@ fn render_cmd(cmd: &[&str]) -> String {
 }
 
 fn shell_escape_if_needed(s: &str) -> String {
-    if s.chars().any(|c| c.is_whitespace() || c == '\'' || c == '"' || c == '$') {
+    if s.chars()
+        .any(|c| c.is_whitespace() || c == '\'' || c == '"' || c == '$')
+    {
         format!("'{}'", s.replace('\'', "'\\''"))
     } else {
         s.to_string()
     }
 }
-

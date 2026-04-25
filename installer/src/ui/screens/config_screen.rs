@@ -19,7 +19,11 @@ use crate::{
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let v = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(9), Constraint::Min(1), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(9),
+            Constraint::Min(1),
+            Constraint::Length(2),
+        ])
         .split(area);
 
     let cfg = &app.config;

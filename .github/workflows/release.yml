@@ -1,0 +1,175 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0). Must already exist on the repo.'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: installer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+
+  build-binary:
+    name: Build static musl binary (x86_64)
+    needs: ci-gate
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: installer
+    outputs:
+      binary_name: ${{ steps.rename.outputs.name }}
+      sha256: ${{ steps.checksum.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + musl target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            installer/target/
+          key: ${{ runner.os }}-musl-cargo-${{ hashFiles('installer/Cargo.lock', 'installer/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-musl-cargo-
+
+      - name: cargo build --target=x86_64-unknown-linux-musl
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Verify static link
+        run: |
+          file target/x86_64-unknown-linux-musl/release/nqrustbackup-installer
+          # Should print "statically linked" — fail loudly if not
+          file target/x86_64-unknown-linux-musl/release/nqrustbackup-installer | grep -E 'static.*linked'
+
+      - name: Smoke test the static binary
+        run: |
+          ./target/x86_64-unknown-linux-musl/release/nqrustbackup-installer --version
+          ./target/x86_64-unknown-linux-musl/release/nqrustbackup-installer plan \
+              --source upstream-compat --profile all-in-one
+          ./target/x86_64-unknown-linux-musl/release/nqrustbackup-installer install --dry-run
+
+      - name: Rename for release
+        id: rename
+        run: |
+          NAME="nqrustbackup-installer-x86_64-linux-musl"
+          cp target/x86_64-unknown-linux-musl/release/nqrustbackup-installer "$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: SHA-256 checksum
+        id: checksum
+        run: |
+          NAME="${{ steps.rename.outputs.name }}"
+          sha256sum "$NAME" | tee "${NAME}.sha256"
+          SHA=$(awk '{print $1}' "${NAME}.sha256")
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nqrustbackup-installer-x86_64-linux-musl
+          path: |
+            installer/nqrustbackup-installer-x86_64-linux-musl
+            installer/nqrustbackup-installer-x86_64-linux-musl.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build-binary
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nqrustbackup-installer-x86_64-linux-musl
+          path: dist/
+
+      - name: Show artifacts
+        run: ls -la dist/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: ${{ steps.tag.outputs.name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/nqrustbackup-installer-x86_64-linux-musl
+            dist/nqrustbackup-installer-x86_64-linux-musl.sha256
+          body: |
+            # NQRustBackup Installer ${{ steps.tag.outputs.name }}
+
+            Static `x86_64-linux-musl` build of the NQRustBackup Rust TUI installer.
+
+            ## Quick install
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/master/scripts/install.sh | sudo bash
+            ```
+
+            That downloads the binary attached to this release and launches `install` against your host.
+
+            ## Manual download
+
+            ```bash
+            curl -fsSLO https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.name }}/nqrustbackup-installer-x86_64-linux-musl
+            chmod +x nqrustbackup-installer-x86_64-linux-musl
+            sudo ./nqrustbackup-installer-x86_64-linux-musl
+            ```
+
+            ## Checksum
+
+            ```
+            ${{ needs.build-binary.outputs.sha256 }}  nqrustbackup-installer-x86_64-linux-musl
+            ```
+
+            ## What it installs
+
+            See [`installer/README.md`](https://github.com/${{ github.repository }}/blob/master/installer/README.md) — by default deploys Director + Storage + FileDaemon + PostgreSQL catalog + WebUI in one host (~5 min on Ubuntu 24.04).

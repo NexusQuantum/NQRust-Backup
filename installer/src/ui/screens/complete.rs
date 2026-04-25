@@ -8,7 +8,10 @@ use ratatui::{
     Frame,
 };
 
-use crate::{app::App, theme::{styles, symbols, PRODUCT_NAME}};
+use crate::{
+    app::App,
+    theme::{styles, symbols, PRODUCT_NAME},
+};
 
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let v = Layout::default()
@@ -23,20 +26,14 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
 
     let banner = Paragraph::new(Line::from(vec![
         Span::styled(format!("{} ", symbols::CHECK), styles::success()),
-        Span::styled(
-            format!("{PRODUCT_NAME} installed"),
-            styles::primary_bold(),
-        ),
+        Span::styled(format!("{PRODUCT_NAME} installed"), styles::primary_bold()),
     ]))
     .alignment(Alignment::Center);
     frame.render_widget(banner, v[0]);
 
     let mut lines = vec![
         Line::from(""),
-        Line::from(Span::styled(
-            "Next steps:",
-            styles::accent(),
-        )),
+        Line::from(Span::styled("Next steps:", styles::accent())),
         Line::from(""),
         Line::from(vec![
             Span::styled("  • ", styles::muted()),
@@ -62,7 +59,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         lines.push(Line::from(vec![
             Span::styled("    (log in with the ", styles::muted()),
             Span::styled("admin", styles::primary_bold()),
-            Span::styled(" console profile — password in /etc/bareos/bareos-dir.d/console/admin.conf)", styles::muted()),
+            Span::styled(
+                " console profile — password in /etc/bareos/bareos-dir.d/console/admin.conf)",
+                styles::muted(),
+            ),
         ]));
     }
     frame.render_widget(Paragraph::new(lines), v[1]);

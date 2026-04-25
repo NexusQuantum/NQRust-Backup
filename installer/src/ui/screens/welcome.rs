@@ -66,8 +66,7 @@ pub fn render(frame: &mut Frame, _app: &App, area: Rect) {
 }
 
 pub async fn handle(app: &mut App, key: KeyEvent) {
-    match key.code {
-        KeyCode::Enter => app.screen = Screen::Preflight,
-        _ => {}
+    if key.code == KeyCode::Enter {
+        app.screen = Screen::Preflight;
     }
 }

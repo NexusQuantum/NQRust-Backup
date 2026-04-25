@@ -25,12 +25,10 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         ])
         .split(area);
 
-    let header = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "Checking this host for install prerequisites…",
-            styles::text(),
-        ),
-    ]));
+    let header = Paragraph::new(Line::from(vec![Span::styled(
+        "Checking this host for install prerequisites…",
+        styles::text(),
+    )]));
     frame.render_widget(header, v[0]);
 
     if app.preflight.is_empty() {

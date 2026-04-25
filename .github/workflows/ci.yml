@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'installer/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/install.sh'
+  pull_request:
+    paths:
+      - 'installer/**'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+      - 'scripts/install.sh'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  installer:
+    name: Installer (Rust TUI)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: installer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            installer/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('installer/Cargo.lock', 'installer/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: cargo fmt --check
+        run: cargo fmt -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo build --release
+        run: cargo build --release
+
+      - name: Smoke test — non-TUI subcommands
+        run: |
+          ./target/release/nqrustbackup-installer --version
+          ./target/release/nqrustbackup-installer --help
+          ./target/release/nqrustbackup-installer plan --source upstream-compat --profile all-in-one
+          ./target/release/nqrustbackup-installer plan --source upstream-compat --profile client-only
+          ./target/release/nqrustbackup-installer install --dry-run
+
+      - name: Verify binary is x86_64 ELF
+        run: file ./target/release/nqrustbackup-installer | grep -q 'ELF.*x86-64'
+
+  shellcheck:
+    name: shellcheck (install.sh)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Lint scripts
+        run: |
+          if [ -f scripts/install.sh ]; then
+            shellcheck -x scripts/install.sh
+            bash -n scripts/install.sh
+          fi

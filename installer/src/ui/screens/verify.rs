@@ -18,7 +18,11 @@ use crate::{
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let v = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Min(1), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(1),
+            Constraint::Length(2),
+        ])
         .split(area);
 
     let header = Paragraph::new(Line::from(Span::styled(
@@ -39,8 +43,7 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
         widgets::checklist::render(frame, v[1], &app.verify, app.spinner_tick);
     }
 
-    let all_ok = !app.verify.is_empty()
-        && app.verify.iter().all(|c| c.status == CheckStatus::Ok);
+    let all_ok = !app.verify.is_empty() && app.verify.iter().all(|c| c.status == CheckStatus::Ok);
     let hint = if app.verify.is_empty() {
         Line::from(vec![
             Span::styled("Enter", styles::primary_bold()),

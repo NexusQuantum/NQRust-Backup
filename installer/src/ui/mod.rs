@@ -31,10 +31,7 @@ fn draw_body(frame: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(styles::border())
-        .title(format!(
-            " NQRustBackup Installer · {} ",
-            app.screen.title()
-        ))
+        .title(format!(" NQRustBackup Installer · {} ", app.screen.title()))
         .title_style(styles::primary_bold());
     let inner = block.inner(area);
     frame.render_widget(block, area);

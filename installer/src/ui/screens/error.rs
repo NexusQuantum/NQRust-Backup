@@ -8,12 +8,20 @@ use ratatui::{
     Frame,
 };
 
-use crate::{app::App, theme::{styles, symbols}, ui::widgets};
+use crate::{
+    app::App,
+    theme::{styles, symbols},
+    ui::widgets,
+};
 
 pub fn render(frame: &mut Frame, app: &App, area: Rect) {
     let v = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(4), Constraint::Min(1), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(4),
+            Constraint::Min(1),
+            Constraint::Length(2),
+        ])
         .split(area);
 
     let msg = app
