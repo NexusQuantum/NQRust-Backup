@@ -61,48 +61,16 @@ a2enmod "$mod"
     )
     .await?;
 
-    // The deb installs `/etc/apache2/conf-enabled/bareos-webui.conf` which
-    // aliases /bareos-webui to /usr/share/bareos-webui/public. The rebranded
-    // PHP code redirects users to /nqrustbackup-webui/, which Apache doesn't
-    // know about, so we swap the alias path. The same /usr/share/bareos-webui
-    // tree backs both URLs.
-    let webui_apache = r#"# NQRustBackup WebUI Apache configuration (installed by nqrustbackup-installer)
-<IfModule env_module>
-    SetEnv "APPLICATION_ENV" "production"
-</IfModule>
-
-# Primary URL (matches the rebranded PHP code's internal links).
-Alias /nqrustbackup-webui  /usr/share/bareos-webui/public
-
-# Backwards-compat: keep /bareos-webui working for old bookmarks.
-Alias /bareos-webui  /usr/share/bareos-webui/public
-
-<Directory /usr/share/bareos-webui/public>
-    Options FollowSymLinks
-    AllowOverride None
-    Require all granted
-
-    <IfModule mod_rewrite.c>
-        RewriteEngine on
-        RewriteBase /nqrustbackup-webui
-        RewriteCond %{REQUEST_FILENAME} -s [OR]
-        RewriteCond %{REQUEST_FILENAME} -l [OR]
-        RewriteCond %{REQUEST_FILENAME} -d
-        RewriteRule ^.*$ - [NC,L]
-        RewriteRule ^.*$ index.php [NC,L]
-    </IfModule>
-</Directory>
-"#;
-    let install_apache = format!(
-        r#"set -eu
-# Disable the deb's stock bareos-webui.conf (we ship our own).
+    // Disable any global apache configs that Alias /bareos-webui or
+    // /nqrustbackup-webui — we'd rather serve the WebUI as the DocumentRoot
+    // of the dedicated vhost on the chosen port, so EVERY URL the rebranded
+    // PHP emits resolves directly without rewriting. (Aliases + RewriteBase
+    // disagreed about the prefix, which is what was causing post-login 404s.)
+    let disable_old_aliases = r#"set -eu
 a2disconf bareos-webui 2>/dev/null || true
-cat > /etc/apache2/conf-available/nqrustbackup-webui.conf <<'__EOF__'
-{webui_apache}__EOF__
-a2enconf nqrustbackup-webui
-"#
-    );
-    sudo_run_logged(&["sh", "-c", &install_apache], log, cfg.dry_run).await?;
+a2disconf nqrustbackup-webui 2>/dev/null || true
+"#;
+    sudo_run_logged(&["sh", "-c", disable_old_aliases], log, cfg.dry_run).await?;
 
     // Make Apache listen on the chosen port.
     let port_setup = format!(
@@ -144,28 +112,49 @@ fi
 "#;
     sudo_run_logged(&["sh", "-c", console_activate], log, cfg.dry_run).await?;
 
-    // Redirect / → /bareos-webui/ on the WebUI port so users land where they expect.
-    // We drop a dedicated VirtualHost on `cfg.webui_port` that does the redirect;
-    // the `bareos-webui.conf` Alias already exposes /bareos-webui/ on every vhost.
-    let redirect_conf = format!(
+    // Drop a dedicated VirtualHost on the WebUI port whose DocumentRoot IS
+    // the webui public dir. Whatever path the rebranded PHP emits — /,
+    // /auth/login, /dashboard, /director/configuration, etc. — Laminas
+    // routes via the standard `RewriteRule … index.php` pattern with
+    // `RewriteBase /`. No prefix, no aliases, nothing to mismatch.
+    let vhost_conf = format!(
         r#"<VirtualHost *:{port}>
   ServerName _
-  DocumentRoot /var/www/html
-  RedirectMatch ^/$ /nqrustbackup-webui/
+  DocumentRoot /usr/share/bareos-webui/public
   ErrorLog ${{APACHE_LOG_DIR}}/nqrustbackup-webui-error.log
   CustomLog ${{APACHE_LOG_DIR}}/nqrustbackup-webui-access.log combined
+
+  <IfModule env_module>
+    SetEnv "APPLICATION_ENV" "production"
+  </IfModule>
+
+  <Directory /usr/share/bareos-webui/public>
+    Options FollowSymLinks
+    AllowOverride None
+    Require all granted
+
+    <IfModule mod_rewrite.c>
+      RewriteEngine on
+      RewriteBase /
+      RewriteCond %{{REQUEST_FILENAME}} -s [OR]
+      RewriteCond %{{REQUEST_FILENAME}} -l [OR]
+      RewriteCond %{{REQUEST_FILENAME}} -d
+      RewriteRule ^.*$ - [NC,L]
+      RewriteRule ^.*$ index.php [NC,L]
+    </IfModule>
+  </Directory>
 </VirtualHost>
 "#,
         port = cfg.webui_port
     );
-    let install_redirect = format!(
+    let install_vhost = format!(
         r#"set -eu
 cat > /etc/apache2/sites-available/nqrustbackup-webui.conf <<'__EOF__'
-{redirect_conf}__EOF__
+{vhost_conf}__EOF__
 a2ensite nqrustbackup-webui
 "#
     );
-    sudo_run_logged(&["sh", "-c", &install_redirect], log, cfg.dry_run).await?;
+    sudo_run_logged(&["sh", "-c", &install_vhost], log, cfg.dry_run).await?;
 
     // Make sure TLS is disabled on the Director resource itself, not just on
     // the admin console. The bareos-director ships with `TLS Enable = yes`

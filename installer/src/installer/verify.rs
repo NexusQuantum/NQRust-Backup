@@ -33,14 +33,9 @@ fn run_blocking(cfg: &InstallConfig, log: &LogRing) -> Result<Vec<PreflightCheck
     }
 
     if cfg.profile.installs_webui() {
-        // Root should redirect to /nqrustbackup-webui/.
-        let root = format!("http://{}:{}/", cfg.director_address, cfg.webui_port);
-        out.push(http_check("WebUI root (expect 301/302)", &root));
-        let app = format!(
-            "http://{}:{}/nqrustbackup-webui/",
-            cfg.director_address, cfg.webui_port
-        );
-        out.push(http_check("WebUI app (expect 200)", &app));
+        // WebUI is the DocumentRoot of the WebUI port, so root itself is the app.
+        let url = format!("http://{}:{}/", cfg.director_address, cfg.webui_port);
+        out.push(http_check("WebUI", &url));
     }
 
     for c in &out {
