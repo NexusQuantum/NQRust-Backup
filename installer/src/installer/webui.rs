@@ -128,12 +128,42 @@ a2ensite nqrustbackup-webui
     );
     sudo_run_logged(&["sh", "-c", &install_redirect], log, cfg.dry_run).await?;
 
-    // Reload director so the new admin console resource is live for webui.
+    // Make sure TLS is disabled on the Director resource itself, not just on
+    // the admin console. The bareos-director ships with `TLS Enable = yes`
+    // and `TLS Required = yes` on the Director { ... } resource, which
+    // causes any console (including the WebUI) to fail with the "SSL/TLS
+    // handshake failed" error. Per-console `TLS Enable = no` is overridden
+    // by the Director-level setting in some Bareos versions; forcing both
+    // levels off is the safe configuration for a single-host install.
+    //
+    // NOTE: this does NOT change daemon-to-daemon (DIR<->SD<->FD) TLS,
+    // which uses fixed PSK secrets that work fine — backups still encrypt
+    // in transit between the daemons.
+    let dir_tls_off = r#"set -eu
+DIR_CONF=/etc/bareos/bareos-dir.d/director/bareos-dir.conf
+if [ -f "$DIR_CONF" ]; then
+  # Replace existing TLS settings to "no", or insert before the closing brace
+  # if not present.
+  if grep -q '^\s*TLS\s*Enable' "$DIR_CONF"; then
+    sed -i 's/^\(\s*TLS\s*Enable\s*\)=.*/\1= no/' "$DIR_CONF"
+  else
+    sed -i '/^}\s*$/i \  TLS Enable = no' "$DIR_CONF"
+  fi
+  if grep -q '^\s*TLS\s*Require' "$DIR_CONF"; then
+    sed -i 's/^\(\s*TLS\s*Require\s*\)=.*/\1= no/' "$DIR_CONF"
+  else
+    sed -i '/^}\s*$/i \  TLS Require = no' "$DIR_CONF"
+  fi
+fi
+"#;
+    sudo_run_logged(&["sh", "-c", dir_tls_off], log, cfg.dry_run).await?;
+
+    // Reload director so the TLS + admin console changes are live.
     sudo_run_logged(
         &[
             "sh",
             "-c",
-            "echo -e 'reload\nquit' | bconsole >/dev/null 2>&1 || systemctl restart bareos-director",
+            "systemctl restart bareos-director && sleep 1 && echo -e 'status director\nquit' | bconsole >/dev/null 2>&1 || true",
         ],
         log,
         cfg.dry_run,
@@ -143,6 +173,12 @@ a2ensite nqrustbackup-webui
     // Restart so the newly enabled php module + sites are picked up cleanly.
     sudo_run_logged(&["systemctl", "restart", "apache2"], log, cfg.dry_run).await?;
 
+    // Apply NQRustBackup brand overlay — downloads the rebranded webui tarball
+    // from the same GitHub release the installer came from and rsync-overlays
+    // it onto /usr/share/bareos-webui/. After this, the login page + theme +
+    // logo are NQRustBackup, not Bareos.
+    apply_brand_overlay(cfg, log).await?;
+
     log.push(
         LogLevel::Ok,
         format!(
@@ -150,5 +186,47 @@ a2ensite nqrustbackup-webui
             cfg.director_address, cfg.webui_port
         ),
     );
+    Ok(())
+}
+
+async fn apply_brand_overlay(cfg: &InstallConfig, log: &LogRing) -> Result<()> {
+    // Allow override via env (useful for testing PRs without re-tagging a release).
+    let url = std::env::var("NQRB_WEBUI_TARBALL").unwrap_or_else(|_| {
+        "https://github.com/NexusQuantum/NQRust-Backup/releases/latest/download/nqrustbackup-webui.tar.gz".to_string()
+    });
+    log.push(
+        LogLevel::Info,
+        format!("downloading NQRustBackup webui tarball: {url}"),
+    );
+
+    let script = format!(
+        r#"set -eu
+URL='{url}'
+DEST=/usr/share/bareos-webui
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+if ! curl -fsSL "$URL" -o "$TMP/webui.tgz"; then
+  echo "WARN: could not download $URL — leaving Bareos branding in place" >&2
+  exit 0
+fi
+mkdir -p "$TMP/extract"
+tar xzf "$TMP/webui.tgz" -C "$TMP/extract"
+# Overlay (no --delete: we don't want to remove deb-managed files we don't ship).
+# rsync may not be installed on minimal hosts; fall back to cp -a.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a "$TMP/extract/" "$DEST/"
+else
+  cp -a "$TMP/extract/." "$DEST/"
+fi
+chown -R root:root "$DEST"
+find "$DEST" -type d -exec chmod 755 {{}} +
+find "$DEST" -type f -exec chmod 644 {{}} +
+echo "applied NQRustBackup webui overlay -> $DEST"
+"#
+    );
+    sudo_run_logged(&["sh", "-c", &script], log, cfg.dry_run).await?;
+
+    // Restart apache so the freshly-replaced PHP files are served.
+    sudo_run_logged(&["systemctl", "restart", "apache2"], log, cfg.dry_run).await?;
     Ok(())
 }

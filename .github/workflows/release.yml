@@ -106,9 +106,51 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  package-webui:
+    name: Package NQRustBackup WebUI tarball
+    runs-on: ubuntu-24.04
+    outputs:
+      name: ${{ steps.pack.outputs.name }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pack webui/ as nqrustbackup-webui.tar.gz
+        id: pack
+        run: |
+          NAME="nqrustbackup-webui.tar.gz"
+          # Exclude tests + cmake + .in template files (templates need CMake to render).
+          # Include everything that the apt-installed bareos-webui has at /usr/share/bareos-webui/.
+          tar czf "$NAME" \
+              -C webui \
+              --exclude='./tests' \
+              --exclude='./cmake' \
+              --exclude='./CMakeLists.txt' \
+              --exclude='*.in' \
+              --exclude='./LICENSE' \
+              --exclude='./README.md' \
+              --exclude='./copyright' \
+              --exclude='./doc' \
+              .
+          ls -la "$NAME"
+          sha256sum "$NAME" | tee "${NAME}.sha256"
+          SHA=$(awk '{print $1}' "${NAME}.sha256")
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload webui artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nqrustbackup-webui
+          path: |
+            nqrustbackup-webui.tar.gz
+            nqrustbackup-webui.tar.gz.sha256
+          retention-days: 7
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: build-binary
+    needs: [build-binary, package-webui]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -130,6 +172,12 @@ jobs:
           name: nqrustbackup-installer-x86_64-linux-musl
           path: dist/
 
+      - name: Download webui artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nqrustbackup-webui
+          path: dist/
+
       - name: Show artifacts
         run: ls -la dist/
 
@@ -143,6 +191,8 @@ jobs:
           files: |
             dist/nqrustbackup-installer-x86_64-linux-musl
             dist/nqrustbackup-installer-x86_64-linux-musl.sha256
+            dist/nqrustbackup-webui.tar.gz
+            dist/nqrustbackup-webui.tar.gz.sha256
           body: |
             # NQRustBackup Installer ${{ steps.tag.outputs.name }}
 
