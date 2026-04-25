@@ -6,9 +6,27 @@ Same look and feel (ratatui + crossterm), same modular shape
 (`installer/` logic + `ui/screens` + `ui/widgets`), tuned for the
 Director + Storage + FileDaemon + Catalog + WebUI stack.
 
-## Build
+## Quick install (curl)
 
 ```bash
+# Default: TUI if a TTY is attached, otherwise headless install with defaults.
+curl -fsSL https://raw.githubusercontent.com/NexusQuantum/CDN-Backup/master/scripts/install.sh | sudo bash
+
+# With flags (forwarded to `nqrustbackup-installer install`):
+curl -fsSL https://raw.githubusercontent.com/NexusQuantum/NQRust-Backup/master/scripts/install.sh | \
+    sudo bash -s -- --profile server-only --webui-port 9100 --dry-run
+```
+
+Knobs:
+- `NQRB_REPO=<owner>/<repo>` — override the source repo (default `NexusQuantum/NQRust-Backup`).
+- `NQRB_VERSION=v0.1.0` — pin a specific release tag (default `latest`).
+- `NQRB_NO_RUN=1` — only download the binary to `/usr/local/bin/nqrustbackup-installer`; don't run it.
+
+## Build from source
+
+```bash
+git clone https://github.com/NexusQuantum/NQRust-Backup
+cd NQRust-Backup/installer
 cargo build --release
 # → target/release/nqrustbackup-installer  (~2.2 MB)
 ```

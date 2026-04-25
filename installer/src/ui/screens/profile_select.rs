@@ -75,15 +75,11 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
 
 pub async fn handle(app: &mut App, key: KeyEvent) {
     match key.code {
-        KeyCode::Up => {
-            if app.profile_idx > 0 {
-                app.profile_idx -= 1;
-            }
+        KeyCode::Up if app.profile_idx > 0 => {
+            app.profile_idx -= 1;
         }
-        KeyCode::Down => {
-            if app.profile_idx + 1 < InstallProfile::ALL.len() {
-                app.profile_idx += 1;
-            }
+        KeyCode::Down if app.profile_idx + 1 < InstallProfile::ALL.len() => {
+            app.profile_idx += 1;
         }
         KeyCode::Enter => {
             app.config.profile = app.selected_profile();

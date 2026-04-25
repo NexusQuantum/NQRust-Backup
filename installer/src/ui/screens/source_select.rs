@@ -75,15 +75,11 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
 
 pub async fn handle(app: &mut App, key: KeyEvent) {
     match key.code {
-        KeyCode::Up => {
-            if app.source_idx > 0 {
-                app.source_idx -= 1;
-            }
+        KeyCode::Up if app.source_idx > 0 => {
+            app.source_idx -= 1;
         }
-        KeyCode::Down => {
-            if app.source_idx + 1 < InstallSource::ALL.len() {
-                app.source_idx += 1;
-            }
+        KeyCode::Down if app.source_idx + 1 < InstallSource::ALL.len() => {
+            app.source_idx += 1;
         }
         KeyCode::Enter => {
             app.config.source = app.selected_source();
