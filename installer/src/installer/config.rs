@@ -97,6 +97,13 @@ pub async fn render_and_install(cfg: &InstallConfig, log: &LogRing) -> Result<()
     );
     sudo_run_logged(&["sh", "-c", &mkdir], log, cfg.dry_run).await?;
 
+    // Always disable TLS on the console-facing path. This was previously buried
+    // inside the WebUI phase; moving it here means EVERY install path
+    // (upstream-compat, configure-only, build-from-source, all profiles) gets
+    // TLS off by default — closing the regression window where users hit
+    // "SSL/TLS handshake failed" on first login.
+    super::tls::disable_for_console(cfg, log).await?;
+
     Ok(())
 }
 

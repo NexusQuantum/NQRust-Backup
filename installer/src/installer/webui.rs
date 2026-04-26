@@ -82,35 +82,10 @@ fi
     );
     sudo_run_logged(&["sh", "-c", &port_setup], log, cfg.dry_run).await?;
 
-    // Write a known-good admin Console + ensure WebUI directors.ini has TLS off
-    // on both sides. The packaged admin.conf.example sets `TLS Enable = no`
-    // but we overwrite explicitly so a partial earlier install can't leave us
-    // with TLS-PSK enabled (which the PHP webui can't negotiate → login fails
-    // with "Sorry, cannot authenticate. Wrong username, password or SSL/TLS
-    // handshake failed.").
-    let console_activate = r#"set -eu
-cat > /etc/bareos/bareos-dir.d/console/admin.conf <<'__EOF__'
-Console {
-  Name = admin
-  Password = "admin"
-  Profile = "webui-admin"
-  TLS Enable = no
-}
-__EOF__
-chown root:bareos /etc/bareos/bareos-dir.d/console/admin.conf
-chmod 640 /etc/bareos/bareos-dir.d/console/admin.conf
-
-# WebUI side: harden directors.ini so the PHP client matches.
-DI=/etc/bareos-webui/directors.ini
-if [ -f "$DI" ]; then
-  # Comment out then re-add the keys we want, idempotently.
-  sed -i 's/^\(tls_verify_peer\)\s*=.*/\1 = false/; s/^\(enable_tls_psk\)\s*=.*/\1 = false/' "$DI"
-  # If the keys aren't present at all, append them under [localhost-dir] (default section name).
-  grep -q '^tls_verify_peer'  "$DI" || sed -i '/^\[localhost-dir\]/a tls_verify_peer = false' "$DI"
-  grep -q '^enable_tls_psk'   "$DI" || sed -i '/^\[localhost-dir\]/a enable_tls_psk = false' "$DI"
-fi
-"#;
-    sudo_run_logged(&["sh", "-c", console_activate], log, cfg.dry_run).await?;
+    // (TLS-off for console + admin.conf + directors.ini moved to
+    // installer::tls::disable_for_console, which now runs as part of the
+    // always-run "render config" phase. Any install path now gets TLS off
+    // by default — including --source configure-only re-runs.)
 
     // Drop a dedicated VirtualHost on the WebUI port whose DocumentRoot IS
     // the webui public dir. Whatever path the rebranded PHP emits — /,
@@ -156,47 +131,9 @@ a2ensite nqrustbackup-webui
     );
     sudo_run_logged(&["sh", "-c", &install_vhost], log, cfg.dry_run).await?;
 
-    // Make sure TLS is disabled on the Director resource itself, not just on
-    // the admin console. The bareos-director ships with `TLS Enable = yes`
-    // and `TLS Required = yes` on the Director { ... } resource, which
-    // causes any console (including the WebUI) to fail with the "SSL/TLS
-    // handshake failed" error. Per-console `TLS Enable = no` is overridden
-    // by the Director-level setting in some Bareos versions; forcing both
-    // levels off is the safe configuration for a single-host install.
-    //
-    // NOTE: this does NOT change daemon-to-daemon (DIR<->SD<->FD) TLS,
-    // which uses fixed PSK secrets that work fine — backups still encrypt
-    // in transit between the daemons.
-    let dir_tls_off = r#"set -eu
-DIR_CONF=/etc/bareos/bareos-dir.d/director/bareos-dir.conf
-if [ -f "$DIR_CONF" ]; then
-  # Replace existing TLS settings to "no", or insert before the closing brace
-  # if not present.
-  if grep -q '^\s*TLS\s*Enable' "$DIR_CONF"; then
-    sed -i 's/^\(\s*TLS\s*Enable\s*\)=.*/\1= no/' "$DIR_CONF"
-  else
-    sed -i '/^}\s*$/i \  TLS Enable = no' "$DIR_CONF"
-  fi
-  if grep -q '^\s*TLS\s*Require' "$DIR_CONF"; then
-    sed -i 's/^\(\s*TLS\s*Require\s*\)=.*/\1= no/' "$DIR_CONF"
-  else
-    sed -i '/^}\s*$/i \  TLS Require = no' "$DIR_CONF"
-  fi
-fi
-"#;
-    sudo_run_logged(&["sh", "-c", dir_tls_off], log, cfg.dry_run).await?;
-
-    // Reload director so the TLS + admin console changes are live.
-    sudo_run_logged(
-        &[
-            "sh",
-            "-c",
-            "systemctl restart bareos-director && sleep 1 && echo -e 'status director\nquit' | bconsole >/dev/null 2>&1 || true",
-        ],
-        log,
-        cfg.dry_run,
-    )
-    .await?;
+    // (Director TLS-off and bareos-director restart are handled in
+    // installer::tls::disable_for_console — which already ran in the config
+    // phase before this WebUI phase. We just need to bounce apache below.)
 
     // Restart so the newly enabled php module + sites are picked up cleanly.
     sudo_run_logged(&["systemctl", "restart", "apache2"], log, cfg.dry_run).await?;
