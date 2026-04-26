@@ -186,6 +186,16 @@ fi
 chown -R root:root "$DEST"
 find "$DEST" -type d -exec chmod 755 {{}} +
 find "$DEST" -type f -exec chmod 644 {{}} +
+# Substitute the webui's reported version with the live bareos-director version.
+# The webui rejects login if its self-reported major version doesn't match
+# the director's major release. The CI build hardcoded the installer's git
+# tag (e.g. 0.1.9) into version.php — wrong for this comparison. Detect the
+# real bareos version from dpkg and patch it in. (Idempotent: safe to re-run.)
+DIRVER=$(dpkg -l bareos-director 2>/dev/null | awk '/^ii/ {{print $3}}' | sed 's/[~-].*//' | head -1)
+if [ -n "$DIRVER" ] && [ -f "$DEST/version.php" ]; then
+  sed -i "s|nqrustbackup_full_version = \"[^\"]*\"|nqrustbackup_full_version = \"$DIRVER\"|" "$DEST/version.php"
+  echo "patched webui version -> $DIRVER"
+fi
 echo "applied NQRustBackup webui overlay -> $DEST"
 "#
     );
