@@ -1,82 +1,124 @@
-//! Disable TLS on the Director-facing console paths.
+//! Configure cert-based TLS between the WebUI (PHP) and the Director.
 //!
-//! Why: Bareos packages ship with TLS-PSK enabled by default on every
-//! resource. The bareos-webui PHP client cannot negotiate TLS-PSK, so users
-//! get "SSL/TLS handshake failed" on login. Daemon-to-daemon TLS-PSK
-//! (DIR<->SD<->FD) keeps working — those use shared secrets and have no
-//! issue. We only turn off the path the WebUI traverses.
+//! Background: Bareos 24+ enforces TLS at the connection layer. Even with
+//! `TlsEnable = no` and `TlsRequire = no` on the Director resource, the
+//! daemon still negotiates TLS-PSK on every incoming console connection
+//! using the resource Password as the PSK key. The bareos-webui PHP BSock
+//! library does not support TLS-PSK at all (no psk_callback in the stream
+//! context), so the director resets the connection on the first non-TLS
+//! byte and the webui shows "Sorry, cannot authenticate. Wrong username,
+//! password or SSL/TLS handshake failed."
 //!
-//! This step is intentionally part of the always-run "render config" phase
-//! (not buried in the WebUI phase) so that re-running the installer with
-//! `--source configure-only` always re-applies the TLS-off settings, and
-//! a fresh upstream-compat install never leaves a window where TLS is on.
+//! Fix: stop trying to talk plain. Generate a self-signed cert at install
+//! time, give it to the Director, and tell the webui to do cert-based TLS
+//! (which PHP openssl supports natively) with peer verification off (the
+//! cert is self-signed and only the local webui ever connects to it).
+//!
+//! Daemon-to-daemon TLS-PSK between DIR<->SD<->FD is left untouched —
+//! those clients support PSK fine and using their own well-known shared
+//! secrets is more secure than a self-signed cert anyway.
 
 use anyhow::Result;
 
 use crate::app::{InstallConfig, LogLevel, LogRing};
 use crate::installer::executor::sudo_run_logged;
 
-/// Apply TLS-off to: Director resource, admin Console resource, and
-/// /etc/bareos-webui/directors.ini. Restart bareos-director so it takes effect.
+/// Provision a self-signed Director cert + wire both sides of the WebUI
+/// connection to use it. Restart bareos-director.
 pub async fn disable_for_console(cfg: &InstallConfig, log: &LogRing) -> Result<()> {
     log.push(
         LogLevel::Info,
-        "disabling TLS on Director + admin console + webui directors.ini",
+        "configuring cert-based TLS between WebUI and Director",
     );
 
     let script = r#"set -eu
 
-# 1. Director resource: TLS Enable = no, TLS Require = no
-DIR_CONF=/etc/bareos/bareos-dir.d/director/bareos-dir.conf
-if [ -f "$DIR_CONF" ]; then
-  if grep -qE '^\s*TLS\s*Enable' "$DIR_CONF"; then
-    sed -i 's/^\(\s*TLS\s*Enable\s*\)=.*/\1= no/' "$DIR_CONF"
-  else
-    sed -i '/^}\s*$/i \  TLS Enable = no' "$DIR_CONF"
-  fi
-  if grep -qE '^\s*TLS\s*Require' "$DIR_CONF"; then
-    sed -i 's/^\(\s*TLS\s*Require\s*\)=.*/\1= no/' "$DIR_CONF"
-  else
-    sed -i '/^}\s*$/i \  TLS Require = no' "$DIR_CONF"
-  fi
+# 1. Generate a self-signed cert for the Director if not already present.
+#    Used only for the WebUI<->Director TLS handshake; not for client auth.
+TLS_DIR=/etc/bareos/tls
+CERT="$TLS_DIR/director.crt"
+KEY="$TLS_DIR/director.key"
+if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
+  mkdir -p "$TLS_DIR"
+  openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+    -subj "/CN=nqrustbackup-director" \
+    -keyout "$KEY" -out "$CERT" 2>/dev/null
+  chown -R bareos:bareos "$TLS_DIR" 2>/dev/null || true
+  chmod 700 "$TLS_DIR"
+  chmod 600 "$KEY"
+  chmod 644 "$CERT"
+  echo "generated self-signed cert at $CERT"
+else
+  echo "reusing existing $CERT"
 fi
 
-# 2. admin Console resource: write a known-good copy with TLS off + Profile webui-admin.
+# 2. Director resource: enable TLS with the self-signed cert; do NOT require
+#    it (so PSK keeps working for daemon-to-daemon paths). Disable PSK
+#    auto-authenticate so cert TLS is the path the WebUI takes.
+DIR_CONF=/etc/bareos/bareos-dir.d/director/bareos-dir.conf
+set_dir() {
+  local key="$1" val="$2"
+  if grep -qE "^\s*${key}\s*=" "$DIR_CONF"; then
+    sed -i "s|^\(\s*${key}\s*\)=.*|\1= ${val}|" "$DIR_CONF"
+  else
+    sed -i "/^}\s*$/i \  ${key} = ${val}" "$DIR_CONF"
+  fi
+}
+if [ -f "$DIR_CONF" ]; then
+  set_dir "TLS Enable"        "yes"
+  set_dir "TLS Require"       "no"
+  set_dir "TLS Authenticate"  "no"
+  set_dir "TLS Verify Peer"   "no"
+  set_dir "TLS Certificate"   "\"$CERT\""
+  set_dir "TLS Key"           "\"$KEY\""
+fi
+
+# 3. admin Console resource: matches Director cert TLS settings.
 mkdir -p /etc/bareos/bareos-dir.d/console
-cat > /etc/bareos/bareos-dir.d/console/admin.conf <<'__EOF__'
+cat > /etc/bareos/bareos-dir.d/console/admin.conf <<__EOF__
 Console {
   Name = admin
   Password = "admin"
   Profile = "webui-admin"
-  TLS Enable = no
+  TLS Enable = yes
+  TLS Require = no
+  TLS Authenticate = no
+  TLS Verify Peer = no
 }
 __EOF__
 chown root:bareos /etc/bareos/bareos-dir.d/console/admin.conf 2>/dev/null || true
 chmod 640 /etc/bareos/bareos-dir.d/console/admin.conf
 
-# 3. WebUI side: directors.ini — turn off all TLS verification + PSK keys.
+# 4. WebUI directors.ini: tell PHP BSock to do cert TLS (which it CAN do —
+#    psk it cannot). Skip peer verification (self-signed cert).
 DI=/etc/bareos-webui/directors.ini
 if [ -f "$DI" ]; then
-  for KEY in tls_verify_peer enable_tls_psk tls_required tls_authenticate; do
-    if grep -qE "^\s*$KEY\s*=" "$DI"; then
-      sed -i "s|^\s*$KEY\s*=.*|$KEY = false|" "$DI"
+  set_ini() {
+    local key="$1" val="$2"
+    if grep -qE "^\s*${key}\s*=" "$DI"; then
+      sed -i "s|^\s*${key}\s*=.*|${key} = ${val}|" "$DI"
+    else
+      sed -i "/^\[localhost-dir\]/a ${key} = ${val}" "$DI"
     fi
-  done
-  # Make sure the two essential keys exist somewhere in the [localhost-dir] section.
-  for KEY in tls_verify_peer enable_tls_psk; do
-    grep -q "^$KEY" "$DI" || sed -i "/^\[localhost-dir\]/a $KEY = false" "$DI"
-  done
+  }
+  set_ini "tls_verify_peer"      "false"
+  set_ini "enable_tls_psk"       "false"
+  set_ini "server_can_do_tls"    "true"
+  set_ini "server_requires_tls"  "false"
+  set_ini "client_can_do_tls"    "true"
+  set_ini "client_requires_tls"  "false"
 fi
 
-# 4. Restart director so the TLS settings on its listening socket are reapplied.
+# 5. Restart director so the cert + TLS settings on the listener take effect.
 systemctl restart bareos-director
-# 5. Probe — bconsole should connect without TLS errors.
 sleep 2
+
+# 6. Probe — bconsole still works (it negotiates PSK on the same listener).
 echo -e 'status director\nquit' | timeout 5 bconsole >/tmp/nqrb-tls-probe.out 2>&1 || true
 if grep -q '1000 OK' /tmp/nqrb-tls-probe.out; then
-  echo "TLS-off applied; bconsole reaches director"
+  echo "cert TLS applied; bconsole reaches director (PSK still works for native clients)"
 else
-  echo "WARN: bconsole did not get a clean 1000 OK after TLS-off:" >&2
+  echo "WARN: bconsole did not get a clean 1000 OK after TLS config:" >&2
   head -10 /tmp/nqrb-tls-probe.out >&2 || true
 fi
 rm -f /tmp/nqrb-tls-probe.out

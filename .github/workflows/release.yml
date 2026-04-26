@@ -115,17 +115,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Render CMake .in templates (no real template vars in webui phtml)
+      - name: Render CMake .in templates with proper @VAR@ substitution
         run: |
           # The webui's view templates ship as .phtml AND .phtml.in in the
-          # repo, but .phtml is .gitignore'd because CMake generates it. The
-          # .phtml.in files have no @VAR@ tokens — just rename to render.
+          # repo, but .phtml is .gitignore'd because CMake generates it.
+          # .phtml.in files have no @VAR@ tokens — just rename.
+          # version.php.in DOES use @VERSION_STRING@ — substitute it.
           cd webui
+          # Pull the version from the tag (or default to a sensible string).
+          VER="${GITHUB_REF#refs/tags/v}"
+          [ -z "$VER" ] || [ "$VER" = "$GITHUB_REF" ] && VER="0.0.0-dev"
+          echo "rendering with VERSION_STRING=$VER"
           find module -name '*.phtml.in' | while read -r f; do
               cp "$f" "${f%.in}"
           done
-          # Same for any other .in files that materialize 1:1.
-          [ -f version.php.in ] && cp version.php.in version.php || true
+          if [ -f version.php.in ]; then
+              sed "s|@VERSION_STRING@|$VER|g; s|@PHP@|/usr/bin/php|g" version.php.in > version.php
+          fi
+          # Belt-and-braces: substitute any remaining @VAR@ in .php files
+          # under module/ and vendor/ — these would otherwise be sent verbatim
+          # in the bareos protocol Hello and the director would reject them.
+          find module vendor -type f \( -name '*.php' -o -name '*.phtml' \) \
+            -exec sed -i "s|@VERSION_STRING@|$VER|g; s|@PHP@|/usr/bin/php|g" {} +
 
       - name: Pack webui/ as nqrustbackup-webui.tar.gz
         id: pack
